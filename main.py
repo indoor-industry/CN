@@ -1,15 +1,18 @@
-#HINT: SCALE BETA BY K BOLTZMANN TO MAKE MORE SENSE OF IT
-
 import matplotlib.pyplot as plt
 import numpy as np
-import math
 
 #specify size of lattice
 M=200
 N=200
 
-J=1 # coupling between spins
-beta = 0.4 #inverse temperature in units of energy 
+#temperature
+T = 250
+
+k_b = 1.4e-23
+J=0.01 # coupling between spins
+beta = 1/(k_b*T) #inverse temperature in units of energy 
+
+print(beta)
 
 #notice the balance between J and beta are crucial for the formation of coherent zones of aligned spin
 
