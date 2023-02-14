@@ -3,8 +3,8 @@ import matplotlib.pyplot as plt
 import numpy as np
 
 #amount of hexagons
-M = 10
-N = 10
+M = 20
+N = 20
 
 #create lattice
 G = nx.hexagonal_lattice_graph(M, N, periodic=True, with_positions=True, create_using=None)
@@ -32,6 +32,7 @@ for m in range(A.shape[1]):
     for n in range(A.shape[1]):
         if A[m,n]==1:
             A[m,n]=spinlist[n]
+#print(A)
 
 #sum over rows to get total spin of neighbouring atoms for each atom
 N = np.sum(A,axis=1).tolist()
@@ -39,9 +40,9 @@ N = np.sum(A,axis=1).tolist()
 dE=np.multiply(N,spinlist)
 
 print(dE)
-
 #Now flip every spin whose dE<0
-
+for node in G:
+    
 
 
 #draw (removed edges since they were ugly)
