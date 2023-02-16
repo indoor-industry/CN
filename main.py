@@ -6,10 +6,10 @@ M=200
 N=200
 
 #temperature
-T = 250
+T = 250000000000000
 
 k_b = 1.4e-23
-J=0.01 # coupling between spins
+J=0.00000001 # coupling between spins
 beta = 1/(k_b*T) #inverse temperature in units of energy 
 
 print(beta)
