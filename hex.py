@@ -1,18 +1,18 @@
 import networkx as nx
 import matplotlib.pyplot as plt
 import numpy as np
+from numba import jit
 
-T = 2.5e2
-k_b = 1.4e-23
-J=1e-3 # coupling between spins
-beta = 1/(k_b*T) #inverse temperature in units of energy
+J=0.01 # coupling between spins
+beta = 1e3 #inverse temperature in units of energy
 
 #create lattice
 def lattice(M, N):
-    lattice = nx.hexagonal_lattice_graph(M, N, periodic=True, with_positions=True, create_using=None)
+    #lattice = nx.hexagonal_lattice_graph(M, N, periodic=True, with_positions=True, create_using=None)
+    lattice = nx.triangular_lattice_graph(M, N, periodic=True, with_positions=True, create_using=None)
     return lattice
 
-G = lattice(50, 50)
+G = lattice(40, 40)
 
 #assign random spin up/down to nodes
 def spinass(G):
@@ -42,21 +42,34 @@ def step(G, J, beta):
     #create adjacency matrix and change all values of adjacency (always 1) with the value of spin of the neighbour
     Adj = nx.adjacency_matrix(G, nodelist=None, dtype=None, weight='weight')
     A = Adj.todense()
-    for m in range(A.shape[1]):
+    for m in range(A.shape[1]):  #A.shape[1] gives number of nodes
         for n in range(A.shape[1]):
             if A[m,n]==1:
-                A[m,n]=spinlist[n]
+                A[m,n]=spinlist[n] #assigned to every element in the adj matrix the corresponding node spin value
 
     #sum over rows to get total spin of neighbouring atoms for each atom
     N = np.sum(A,axis=1).tolist()
+
     #What decides the flip is
-    dE=J*np.multiply(N,spinlist)
+    dE=(J/2)*np.multiply(N,spinlist)
+
+    #debug
+    #print('Energy')
+    #print(dE)
+    #print('Boltmann weight')
+    #print(np.exp(-dE * beta))
+
     #make it into a dictionary
     dEdict = {}
     i = 0
     for node in G:
         dEdict[node]=dE[i]
         i+=1
+
+    #debug
+    #a=0
+    #for node in G:
+    #    print(np.exp(-dEdict[node] * beta) > np.random.rand())
 
     #Now flip every spin whose dE<0
     for node in G:
@@ -71,11 +84,8 @@ def step(G, J, beta):
 #first step otherwise it gets aligned to early
 color = colormap(G)
 pos = nx.get_node_attributes(G, 'pos')
-nx.draw(G, node_color=color, node_size=10, edge_color='white', pos=pos, with_labels=False)
-#node_labels = nx.get_node_attributes(G,'spin')
-#nx.draw_networkx_labels(G, pos, labels = node_labels)
-#plt.show()
-plt.savefig('img/img(00).png')
+nx.draw(G, node_color=color, node_size=20, edge_color='white', pos=pos, with_labels=False)
+#plt.savefig('img/img(0).png')
 
 
 #iterate steps and print
@@ -87,10 +97,11 @@ while i <= 15:
     color = colormap(G)
 
     pos = nx.get_node_attributes(G, 'pos')
-    nx.draw(G, node_color=color, node_size=10, edge_color='white', pos=pos, with_labels=False)
+    nx.draw(G, node_color=color, node_size=20, edge_color='white', pos=pos, with_labels=False)
     #node_labels = nx.get_node_attributes(G,'spin')
     #nx.draw_networkx_labels(G, pos, labels = node_labels)
     #plt.show()
-    plt.savefig('img/img({}).png'.format(i))
+
+#    plt.savefig('img/img({}).png'.format(i+1))
 
     i+=1
