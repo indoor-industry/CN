@@ -10,8 +10,8 @@ import networkx as nx
 import matplotlib.pyplot as plt
 import numpy as np
 
-Jbeta = 1
-steps = 10
+J = 0.01
+beta = 40
 
 #create lattice
 def lattice(M, N):
@@ -19,7 +19,7 @@ def lattice(M, N):
     lattice = nx.triangular_lattice_graph(M, N, periodic=True, with_positions=True, create_using=None)
     return lattice
 
-G = lattice(50, 50)
+G = lattice(20, 20)
 
 #assign random spin up/down to nodes
 def spinass(G):
@@ -58,20 +58,20 @@ def step(G):
     N = np.sum(A,axis=1).tolist()
 
     #What decides the flip is
-    dEbeta=Jbeta*np.multiply(N,spinlist) #half the change in energy multiplied by beta (corresponds to the energy*beta)
+    dE=J*np.multiply(N,spinlist) 
 
     #make it into a dictionary
     dEdict = {}
     i = 0
     for node in G:
-        dEdict[node]=dEbeta[i]
+        dEdict[node]=dE[i]
         i+=1
 
     #Now flip every spin whose dE<0
     for node in G:
         if dEdict[node]<=0:
             spin[node]*=-1
-        elif np.exp(-dEdict[node]) > np.random.rand():
+        elif np.exp(-dEdict[node]*beta) > np.random.rand():
             spin[node] *= -1
 
     #update spin values in graph
@@ -87,7 +87,7 @@ plt.savefig('time_ev/img(0).png')
 
 #iterate steps and print
 i=0
-while i <= steps:
+while i <= 10:
     step(G)
 
     #update color map
@@ -95,9 +95,6 @@ while i <= steps:
 
     pos = nx.get_node_attributes(G, 'pos')
     nx.draw(G, node_color=color, node_size=20, edge_color='white', pos=pos, with_labels=False)
-    #node_labels = nx.get_node_attributes(G,'spin')
-    #nx.draw_networkx_labels(G, pos, labels = node_labels)
-    #plt.show()
 
     plt.savefig('time_ev/img({}).png'.format(i+1))
 

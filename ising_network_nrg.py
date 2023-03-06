@@ -9,25 +9,29 @@
 import networkx as nx
 import matplotlib.pyplot as plt
 import numpy as np
+import time
 
-Jbeta = 0.2
-steps = 10
+time_start = time.perf_counter()
+
+J = 0.01
 
 #create lattice
 def lattice(M, N):
-    #lattice = nx.hexagonal_lattice_graph(M, N, periodic=True, with_positions=True, create_using=None)
-    lattice = nx.triangular_lattice_graph(M, N, periodic=True, with_positions=True, create_using=None)
-    #lattice = nx.grid_2d_graph(M, N, periodic=False, create_using=None) #must be tested, also no visualzation because no positions?
+    lattice = nx.hexagonal_lattice_graph(M, N, periodic=True, with_positions=True, create_using=None)
+    #lattice = nx.triangular_lattice_graph(M, N, periodic=True, with_positions=True, create_using=None)
+    #lattice = nx.grid_2d_graph(M, N, periodic=True, create_using=None) #must be tested, also no visualzation because no positions?
     
     #dim = (10, 10, 10, 10) #works for cubic and n dimensional lattices too! (only energy plot, no visualization)
     #lattice = nx.grid_graph(dim, periodic=True)
     return lattice
 
-G = lattice(10, 10)
-N=0
+M = 20
+N = 20
+G = lattice(M, N)
+
+n=0
 for node in G:
-    N+=1                #number of atoms
-print(N)
+    n+=1                #count number of atoms
 
 #assign random spin up/down to nodes
 def spinass(G):
@@ -38,8 +42,7 @@ def spinass(G):
 spinass(G)
 
 #massive function for single step
-E = []
-def step(G, Jbeta):
+def step(G, beta):
     #create ordered list of spins
     spin = nx.get_node_attributes(G, 'spin')
 
@@ -57,36 +60,53 @@ def step(G, Jbeta):
     N = np.sum(A,axis=1).tolist()
 
     #What decides the flip is
-    dEbeta=Jbeta*np.multiply(N,spinlist) #half the change in energy multiplied by beta (corresponds to the energy*beta)
+    dE=2*J*np.multiply(N,spinlist) #change in energy    ?FACTIOR OF 2 WHY?
 
-    E.append(2*sum(dEbeta))
+    E = sum(dE)
 
     #make it into a dictionary
     dEdict = {}
     i = 0
     for node in G:
-        dEdict[node]=dEbeta[i]
+        dEdict[node]=dE[i]
         i+=1
 
     #Now flip every spin whose dE<0
     for node in G:
         if dEdict[node]<=0:
             spin[node]*=-1
-        elif np.exp(-dEdict[node]) > np.random.rand():
+        elif np.exp(-dEdict[node]*beta) > np.random.rand():
             spin[node] *= -1
 
     #update spin values in graph
     nx.set_node_attributes(G, spin, 'spin')
     return E
 
-#iterate steps and print
-i=0
-while i <= steps:
-    step(G, Jbeta)
-    i+=1
 
-#energy per atom plot
-E = step(G, Jbeta)
-plt.plot(E)
-plt.savefig('plots/plot({}).png'.format(i+1))
+#iterate steps and print
+beta = np.linspace(0.1, 100, 20)
+
+j=0
+for j in range(len(beta)):
+    spinass(G)   #re-randomize the network for every new beta
+
+    i=0
+    E_time = []
+    while i <= 50:
+        E_time.append(step(G, beta[j]))
+        i+=1
+
+    n_array = n*np.ones(len(E_time))
+    plt.plot(E_time/n_array, label='beta={:10.1f}'.format(beta[j]))    #plot energy per atom
+
+plt.legend()
+plt.title('Tuning4Life')
+plt.legend(loc='upper right')
+plt.xlabel('timestep')
+plt.ylabel('energy per site')
+plt.savefig('plots/img({}x{},J={}).png'.format(M, N, J))
 plt.show()
+
+
+time_elapsed = (time.perf_counter() - time_start)
+print ("%5.1f secs" % (time_elapsed))

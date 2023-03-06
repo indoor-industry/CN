@@ -7,7 +7,8 @@ M=500
 N=500
 
 #temperature
-Jbeta = 0.5
+J = 0.01
+beta = 40
 
 #create lattice with random values of 1 and -1
 
@@ -20,7 +21,7 @@ def lattice(N, M):
 #account for thermal fluctuations
 
 @jit
-def update(field, n, m, Jbeta):
+def update(field, n, m, beta):
     nnsum = 0
     N, M = field.shape
     for i in range(n-1, n+2):
@@ -28,26 +29,26 @@ def update(field, n, m, Jbeta):
             if i == n and j == m:
                 continue
             nnsum += field[i % N, j % M] #sum over nearest neighbours
-    dEbeta = field[n, m] * nnsum * Jbeta #half the change in energy multiplied by beta (corresponds to the energy*beta)
-    if dEbeta <= 0:
+    dE = field[n, m] * nnsum * J #half the change in energy multiplied by beta (corresponds to the energy*beta)
+    if dE <= 0:
         field[n, m] *= -1
-    elif np.exp(-dEbeta) > np.random.rand():
+    elif np.exp(-dE*beta) > np.random.rand():
         field[n, m] *= -1
-    return dEbeta
+    return dE
 
 #raster the spin update function trough the lattice
 #account for offset to avoid bias of changing one spin and then counting it in the next iteration
 
 @jit
-def step(field, Jbeta):
+def step(field, beta):
     E=0 #total energy of lattice
     N, M = field.shape
     for n_offset in range(2):
         for m_offset in range(2):
             for n in range(n_offset, N, 2):
                 for m in range(m_offset, M, 2):
-                    update(field, n, m, Jbeta)
-                    E+=update(field, n, m, Jbeta)
+                    update(field, n, m, beta)
+                    E+=update(field, n, m, beta)
     return field, -E
 
 #define a lattice and print timesteps of evolution
@@ -56,23 +57,24 @@ L = lattice(M, N)
 t = 0
 
 #animation
-im = plt.imshow(L, cmap='gray', vmin=-1, vmax=1, interpolation='none')
-while t<100:
-    im.set_data(L)
-    plt.draw()
-    L, E = step(L, Jbeta)
-    plt.pause(.001)
-    t += 1
+#im = plt.imshow(L, cmap='gray', vmin=-1, vmax=1, interpolation='none')
+#while t<100:
+#    im.set_data(L)
+#    plt.draw()
+#    L, E = step(L, beta)
+#    plt.pause(.001)
+#    t += 1
 
 
 #energy plot
-#N_array = M*N*np.ones(10)
-#nrg = []
-#time = []
-#while t<10:
-#    L, E = step(L, Jbeta)
-#    nrg.append(E)
-#    time.append(t)
-#    t += 1
-#A = plt.plot(time, nrg/N_array)
-#plt.show()
+steps = 50
+N_array = M*N*np.ones(steps)
+nrg = []
+time = []
+while t < steps:
+    L, E = step(L, beta)
+    nrg.append(E)
+    time.append(t)
+    t += 1
+A = plt.plot(time, nrg/N_array)
+plt.show()
