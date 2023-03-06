@@ -7,7 +7,7 @@ M=500
 N=500
 
 #temperature
-Jbeta = 0.8
+Jbeta = 0.5
 
 #create lattice with random values of 1 and -1
 
@@ -48,7 +48,7 @@ def step(field, Jbeta):
                 for m in range(m_offset, M, 2):
                     update(field, n, m, Jbeta)
                     E+=update(field, n, m, Jbeta)
-    return field, E
+    return field, -E
 
 #define a lattice and print timesteps of evolution
 L = lattice(M, N)
@@ -66,12 +66,13 @@ while t<100:
 
 
 #energy plot
-nrg = []
-time = []
-#while t<100:
+#N_array = M*N*np.ones(10)
+#nrg = []
+#time = []
+#while t<10:
 #    L, E = step(L, Jbeta)
 #    nrg.append(E)
 #    time.append(t)
 #    t += 1
-#A = plt.plot(time, nrg)
+#A = plt.plot(time, nrg/N_array)
 #plt.show()

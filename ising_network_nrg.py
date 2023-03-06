@@ -1,16 +1,33 @@
+#Typical values of constants
+#J usually from e-4 (magnetic interaction) to 1 ev (electrostatic interaction)
+#T usually from 0 to e3 K
+#k=e-4 (in units of ev/K)
+#beta follows as:
+#beta from 10 to inf
+#hence Jbeta from e-3 to inf
+
 import networkx as nx
 import matplotlib.pyplot as plt
 import numpy as np
 
 Jbeta = 0.2
+steps = 10
 
 #create lattice
 def lattice(M, N):
-    lattice = nx.hexagonal_lattice_graph(M, N, periodic=True, with_positions=True, create_using=None)
-    #lattice = nx.triangular_lattice_graph(M, N, periodic=True, with_positions=True, create_using=None)
+    #lattice = nx.hexagonal_lattice_graph(M, N, periodic=True, with_positions=True, create_using=None)
+    lattice = nx.triangular_lattice_graph(M, N, periodic=True, with_positions=True, create_using=None)
+    #lattice = nx.grid_2d_graph(M, N, periodic=False, create_using=None) #must be tested, also no visualzation because no positions?
+    
+    #dim = (10, 10, 10, 10) #works for cubic and n dimensional lattices too! (only energy plot, no visualization)
+    #lattice = nx.grid_graph(dim, periodic=True)
     return lattice
 
-G = lattice(20, 20)
+G = lattice(10, 10)
+N=0
+for node in G:
+    N+=1                #number of atoms
+print(N)
 
 #assign random spin up/down to nodes
 def spinass(G):
@@ -20,19 +37,9 @@ def spinass(G):
 #run it
 spinass(G)
 
-#create color map
-def colormap(G):
-    color=[]
-    for node in G:
-        if G.nodes[node]['spin']==1:
-            color.append('red')
-        else:
-            color.append('black')
-    return color
-
 #massive function for single step
 E = []
-def step(G):
+def step(G, Jbeta):
     #create ordered list of spins
     spin = nx.get_node_attributes(G, 'spin')
 
@@ -72,34 +79,14 @@ def step(G):
     nx.set_node_attributes(G, spin, 'spin')
     return E
 
-
-#first step otherwise it gets aligned to early
-color = colormap(G)
-pos = nx.get_node_attributes(G, 'pos')
-#nx.draw(G, node_color=color, node_size=20, edge_color='white', pos=pos, with_labels=False)
-#plt.savefig('img/img(0).png')
-
-
 #iterate steps and print
 i=0
-while i <= 50:
-    step(G)
-
-    #update color map
-    color = colormap(G)
-
-    pos = nx.get_node_attributes(G, 'pos')
-#    nx.draw(G, node_color=color, node_size=20, edge_color='white', pos=pos, with_labels=False)
-    #node_labels = nx.get_node_attributes(G,'spin')
-    #nx.draw_networkx_labels(G, pos, labels = node_labels)
-    #plt.show()
-
-#    plt.savefig('img/img({}).png'.format(i+1))
-
+while i <= steps:
+    step(G, Jbeta)
     i+=1
 
-#energy plot
-E = step(G)
-print(E)
+#energy per atom plot
+E = step(G, Jbeta)
 plt.plot(E)
+plt.savefig('plots/plot({}).png'.format(i+1))
 plt.show()
