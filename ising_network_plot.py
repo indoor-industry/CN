@@ -1,10 +1,17 @@
+#Typical values of constants
+#J usually from e-4 (magnetic interaction) to 1 ev (electrostatic interaction)
+#T usually from 0 to e3 K
+#k=e-4 (in units of ev/K)
+#beta follows as:
+#beta from 10 to inf
+#hence Jbeta from e-3 to inf
+
 import networkx as nx
 import matplotlib.pyplot as plt
 import numpy as np
-from numba import jit
 
-J=0.01 # coupling between spins
-beta = 1e3 #inverse temperature in units of energy
+J = 0.01
+beta = 40
 
 #create lattice
 def lattice(M, N):
@@ -12,7 +19,7 @@ def lattice(M, N):
     lattice = nx.triangular_lattice_graph(M, N, periodic=True, with_positions=True, create_using=None)
     return lattice
 
-G = lattice(40, 40)
+G = lattice(20, 20)
 
 #assign random spin up/down to nodes
 def spinass(G):
@@ -33,7 +40,7 @@ def colormap(G):
     return color
 
 #massive function for single step
-def step(G, J, beta):
+def step(G):
     #create ordered list of spins
     spin = nx.get_node_attributes(G, 'spin')
 
@@ -51,13 +58,7 @@ def step(G, J, beta):
     N = np.sum(A,axis=1).tolist()
 
     #What decides the flip is
-    dE=(J/2)*np.multiply(N,spinlist)
-
-    #debug
-    #print('Energy')
-    #print(dE)
-    #print('Boltmann weight')
-    #print(np.exp(-dE * beta))
+    dE=J*np.multiply(N,spinlist) 
 
     #make it into a dictionary
     dEdict = {}
@@ -66,42 +67,35 @@ def step(G, J, beta):
         dEdict[node]=dE[i]
         i+=1
 
-    #debug
-    #a=0
-    #for node in G:
-    #    print(np.exp(-dEdict[node] * beta) > np.random.rand())
-
     #Now flip every spin whose dE<0
     for node in G:
         if dEdict[node]<=0:
             spin[node]*=-1
-        elif np.exp(-dEdict[node] * beta) > np.random.rand():
+        elif np.exp(-dEdict[node]*beta) > np.random.rand():
             spin[node] *= -1
 
     #update spin values in graph
     nx.set_node_attributes(G, spin, 'spin')
 
+
 #first step otherwise it gets aligned to early
 color = colormap(G)
 pos = nx.get_node_attributes(G, 'pos')
 nx.draw(G, node_color=color, node_size=20, edge_color='white', pos=pos, with_labels=False)
-#plt.savefig('img/img(0).png')
+plt.savefig('time_ev/img(0).png')
 
 
 #iterate steps and print
 i=0
-while i <= 15:
-    step(G, J, beta)
+while i <= 10:
+    step(G)
 
     #update color map
     color = colormap(G)
 
     pos = nx.get_node_attributes(G, 'pos')
     nx.draw(G, node_color=color, node_size=20, edge_color='white', pos=pos, with_labels=False)
-    #node_labels = nx.get_node_attributes(G,'spin')
-    #nx.draw_networkx_labels(G, pos, labels = node_labels)
-    #plt.show()
 
-#    plt.savefig('img/img({}).png'.format(i+1))
+    plt.savefig('time_ev/img({}).png'.format(i+1))
 
     i+=1
