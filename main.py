@@ -1,6 +1,9 @@
-import matplotlib.pyplot as plt
 import numpy as np
 from numba import jit
+
+#import matplotlib
+#matplotlib.use('TkAgg')
+import matplotlib.pyplot as plt
 
 #specify size of lattice
 M=500
@@ -56,22 +59,22 @@ L = lattice(M, N)
 t = 0
 
 #animation
-im = plt.imshow(L, cmap='gray', vmin=-1, vmax=1, interpolation='none')
-while t<100:
-    im.set_data(L)
-    plt.draw()
-    L, E = step(L, Jbeta)
-    plt.pause(.001)
-    t += 1
+#im = plt.imshow(L, cmap='gray', vmin=-1, vmax=1, interpolation='none')
+#while t<100:
+#    im.set_data(L)
+#    plt.draw()
+#    L, E = step(L, Jbeta)
+#    plt.pause(.001)
+#    t += 1
 
 
 #energy plot
 nrg = []
 time = []
-#while t<100:
-#    L, E = step(L, Jbeta)
-#    nrg.append(E)
-#    time.append(t)
-#    t += 1
-#A = plt.plot(time, nrg)
-#plt.show()
+while t<100:
+    L, E = step(L, Jbeta)
+    nrg.append(E)
+    time.append(t)
+    t += 1
+A = plt.plot(time, nrg)
+plt.show()
