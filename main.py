@@ -64,7 +64,7 @@ im = plt.imshow(L, cmap='gray', vmin=-1, vmax=1, interpolation='none')
 while t<100:
     im.set_data(L)
     plt.draw()
-    L, E = step(L, Jbeta)
+    L, E = step(L, J*beta)
     plt.pause(.001)
     t += 1
 
