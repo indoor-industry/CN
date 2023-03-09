@@ -7,7 +7,7 @@ M=500
 N=500
 
 #temperature
-J = 0.01
+J = 0.1
 beta = 40
 
 #create lattice with random values of 1 and -1
@@ -29,7 +29,7 @@ def update(field, n, m, beta):
             if i == n and j == m:
                 continue
             nnsum += field[i % N, j % M] #sum over nearest neighbours
-    dE = field[n, m] * nnsum * J #half the change in energy multiplied by beta (corresponds to the energy*beta)
+    dE = 2*field[n, m] * nnsum * J #half the change in energy multiplied by beta (corresponds to the energy*beta)
     if dE <= 0:
         field[n, m] *= -1
     elif np.exp(-dE*beta) > np.random.rand():
@@ -48,33 +48,33 @@ def step(field, beta):
             for n in range(n_offset, N, 2):
                 for m in range(m_offset, M, 2):
                     update(field, n, m, beta)
-                    E+=update(field, n, m, beta)
+                    E+=0.5*update(field, n, m, beta)
     return field, -E
 
 #define a lattice and print timesteps of evolution
 L = lattice(M, N)
 
 t = 0
-
 #animation
-#im = plt.imshow(L, cmap='gray', vmin=-1, vmax=1, interpolation='none')
-#while t<100:
-#    im.set_data(L)
-#    plt.draw()
-#    L, E = step(L, beta)
-#    plt.pause(.001)
-#    t += 1
+im = plt.imshow(L, cmap='gray', vmin=-1, vmax=1, interpolation='none')
+while t<50:
+    im.set_data(L)
+    plt.draw()
+    L, E = step(L, beta)
+    plt.pause(.001)
+    t += 1
 
 
 #energy plot
-steps = 50
-N_array = M*N*np.ones(steps)
-nrg = []
-time = []
-while t < steps:
-    L, E = step(L, beta)
-    nrg.append(E)
-    time.append(t)
-    t += 1
-A = plt.plot(time, nrg/N_array)
-plt.show()
+
+#steps = 50
+#N_array = M*N*np.ones(steps)
+#nrg = []
+#time = []
+#while t < steps:
+#    L, E = step(L, beta)
+#    nrg.append(E)
+#    time.append(t)
+#    t += 1
+#A = plt.plot(time, nrg/N_array)
+#plt.show()

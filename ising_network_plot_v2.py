@@ -1,35 +1,26 @@
-#Typical values of constants
-#J usually from e-4 (magnetic interaction) to 1 ev (electrostatic interaction)
-#T usually from 0 to e3 K
-#k=e-4 (in units of ev/K)
-#beta follows as:
-#beta from 10 to inf
-#hence Jbeta from e-3 to inf
-
 import networkx as nx
 import matplotlib.pyplot as plt
 import numpy as np
+import time
 
-J = 0.01
-beta = 40
+time_start = time.perf_counter()
 
-#create lattice
+J = -1e-4
+beta = 10000
+steps = 15
+
+#creates lattice
 def lattice(M, N):
-    #lattice = nx.hexagonal_lattice_graph(M, N, periodic=True, with_positions=True, create_using=None)
-    lattice = nx.triangular_lattice_graph(M, N, periodic=True, with_positions=True, create_using=None)
+    lattice = nx.hexagonal_lattice_graph(M, N, periodic=True, with_positions=True, create_using=None)
+    #lattice = nx.triangular_lattice_graph(M, N, periodic=True, with_positions=True, create_using=None)
     return lattice
 
-G = lattice(20, 20)
-
-#assign random spin up/down to nodes
+#assigns random spin up/down to nodes
 def spinass(G):
     for node in G:
         G.nodes[node]['spin']=np.random.choice([-1, 1])
 
-#run it
-spinass(G)
-
-#create color map
+#creates color map
 def colormap(G):
     color=[]
     for node in G:
@@ -39,7 +30,7 @@ def colormap(G):
             color.append('black')
     return color
 
-#massive function for single step
+#function for single step
 def step(G):
     #create ordered list of spins
     spin = nx.get_node_attributes(G, 'spin')
@@ -58,7 +49,7 @@ def step(G):
     N = np.sum(A,axis=1).tolist()
 
     #What decides the flip is
-    dE=J*np.multiply(N,spinlist) 
+    dE=2*J*np.multiply(N,spinlist) 
 
     #make it into a dictionary
     dEdict = {}
@@ -77,25 +68,41 @@ def step(G):
     #update spin values in graph
     nx.set_node_attributes(G, spin, 'spin')
 
-
-#first step otherwise it gets aligned to early
-color = colormap(G)
-pos = nx.get_node_attributes(G, 'pos')
-nx.draw(G, node_color=color, node_size=20, edge_color='white', pos=pos, with_labels=False)
-plt.savefig('time_ev/img(0).png')
-
-
 #iterate steps and print
-i=0
-while i <= 10:
-    step(G)
+def iter(G, steps):
+    i=0
+    while i <= steps:
+        step(G)
 
-    #update color map
+        #update color map
+        color = colormap(G)
+
+        pos = nx.get_node_attributes(G, 'pos')
+        nx.draw(G, node_color=color, node_size=20, edge_color='white', pos=pos, with_labels=False)
+
+        plt.savefig('time_ev/step({}).png'.format(i+1))
+    
+        print(i)
+    
+        i+=1
+
+def main():
+    #create lattice
+    G = lattice(20, 20)
+    #run it
+    spinass(G)
+
+    #run first step to visualize initial condiditons
     color = colormap(G)
-
     pos = nx.get_node_attributes(G, 'pos')
     nx.draw(G, node_color=color, node_size=20, edge_color='white', pos=pos, with_labels=False)
+    plt.savefig('time_ev/step(0).png')
 
-    plt.savefig('time_ev/img({}).png'.format(i+1))
+    #iterate given number of times
+    iter(G, steps)
 
-    i+=1
+    time_elapsed = (time.perf_counter() - time_start)
+    print ("checkpoint %5.1f secs" % (time_elapsed))
+
+if __name__ =="__main__":
+    main()
