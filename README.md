@@ -2,7 +2,7 @@
 
 Using the Metropolis-Hastings algorithm
 
-main.py gives a visual simulation (or energy plot) of a 2d grid iding model to test for parameter values such as J and beta
+ising.py gives a visual simulation (or energy plot) of a 2d grid iding model to test for parameter values such as J and beta
 
 ising_network_plot.py saves in time_ev snapshots of an ising network
 
