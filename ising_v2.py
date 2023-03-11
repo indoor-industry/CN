@@ -7,8 +7,9 @@ M=500
 N=500
 
 #temperature
-J = 1e-4
-beta = 10000
+J = -0.2
+B = -0.01
+beta = 10
 
 #create lattice with random values of 1 and -1
 
@@ -29,12 +30,13 @@ def update(field, n, m, beta):
             if i == n and j == m:
                 continue
             nnsum += field[i % N, j % M] #sum over nearest neighbours
-    dE = 2*field[n, m] * nnsum * J #half the change in energy multiplied by beta (corresponds to the energy*beta)
+    dE = -4*field[n, m] * nnsum * J + 2*B*field[n, m]  #change in energy
+    E = J*field[n, m]+nnsum - B*field[n, m]    #energy of single site
     if dE <= 0:
         field[n, m] *= -1
     elif np.exp(-dE*beta) > np.random.rand():
         field[n, m] *= -1
-    return dE
+    return E
 
 #raster the spin update function trough the lattice
 #account for offset to avoid bias of changing one spin and then counting it in the next iteration
@@ -48,8 +50,8 @@ def step(field, beta):
             for n in range(n_offset, N, 2):
                 for m in range(m_offset, M, 2):
                     update(field, n, m, beta)
-                    E+=0.5*update(field, n, m, beta)
-    return field, -E
+                    E+=update(field, n, m, beta)
+    return field, E
 
 #define a lattice and print timesteps of evolution
 L = lattice(M, N)
