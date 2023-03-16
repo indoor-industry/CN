@@ -5,25 +5,25 @@ import time
 
 time_start = time.perf_counter()
 
-lattice_type = 2            #select 1 for square, 2 for triangular, 3 for hexagonal
-M = 40
-N = 40                      #MxN size of lattice
+lattice_type = 'square'            #write square, triangular or hexagonal
+M = 10
+N = 10                      #MxN size of lattice
 J = -0.2                    #spin-spin coupling strenght
-B = 0                    #external field (actually is mu*B where mu is magnetic moment of atoms)
-beta = 10                   #inverse temperature (remember k_b is 1)
-steps = 5                 #evolution timesteps
+B = 0.1                    #external field (actually is mu*B where mu is magnetic moment of atoms)
+beta = 10                  #inverse temperature (remember k_b is 1)
+steps = 10                 #evolution timesteps
 
 #creates lattice
 def lattice(M, N):
-    if lattice_type == 3:
+    if lattice_type == 'hexagonal':
         lattice = nx.hexagonal_lattice_graph(M, N, periodic=True, with_positions=True, create_using=None)
         lattice = nx.convert_node_labels_to_integers(lattice, first_label=0, ordering='default', label_attribute=None)
         pos = nx.get_node_attributes(lattice, 'pos') #use for any shape other than square
-    elif lattice_type == 2:
+    elif lattice_type == 'triangular':
         lattice = nx.triangular_lattice_graph(M, N, periodic=True, with_positions=True, create_using=None)
         lattice = nx.convert_node_labels_to_integers(lattice, first_label=0, ordering='default', label_attribute=None)
         pos = nx.get_node_attributes(lattice, 'pos') #use for any shape other than square
-    elif lattice_type == 1:
+    elif lattice_type == 'square':
         lattice = nx.grid_2d_graph(M, N, periodic=True, create_using=None)
         lattice = nx.convert_node_labels_to_integers(lattice, first_label=0, ordering='default', label_attribute=None)
         pos = generate_grid_pos(lattice, M, N) #use for 2D grid network
@@ -95,8 +95,8 @@ def iter(G, steps, pos):
 
     nx.draw(G, node_color=color, node_size=20, edge_color='white', pos=pos, with_labels=False)
         
-    plt.savefig('time_ev/step(0).png')         #save images
-    #plt.show()                                  #animation
+    #plt.savefig('time_ev/step(0).png')         #save images
+    plt.pause(1)                                  #animation
     
     i=0
     while i <= steps:
@@ -107,8 +107,8 @@ def iter(G, steps, pos):
         
         nx.draw(G, node_color=color, node_size=20, edge_color='white', pos=pos, with_labels=False)
 
-        #plt.pause(1)                                    #this shows an animation
-        plt.savefig('time_ev/step({}).png'.format(i+1))  #this saves the series of images
+        plt.pause(1)                                    #this shows an animation
+        #plt.savefig('time_ev/step({}).png'.format(i+1))  #this saves the series of images
     
         print(i)
     

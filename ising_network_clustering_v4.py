@@ -6,25 +6,25 @@ from scipy import sparse
 
 time_start = time.perf_counter()
 
-lattice_type = 1            #select 1 for square, 2 for triangular, 3 for hexagonal
+lattice_type = 'square'            #write square, triangular or hexagonal
 M = 20
 N = 20
 J = 0.2
-B = 0.01
+B = 0.0
 beta = 10
-steps = 40
+steps = 20
 
 #creates lattice
 def lattice(M, N):
-    if lattice_type == 3:
+    if lattice_type == 'hexagonal':
         lattice = nx.hexagonal_lattice_graph(M, N, periodic=True, with_positions=True, create_using=None)
         lattice = nx.convert_node_labels_to_integers(lattice, first_label=0, ordering='default', label_attribute=None)
         pos = nx.get_node_attributes(lattice, 'pos') #use for any shape other than square
-    elif lattice_type == 2:
+    elif lattice_type == 'triangular':
         lattice = nx.triangular_lattice_graph(M, N, periodic=True, with_positions=True, create_using=None)
         lattice = nx.convert_node_labels_to_integers(lattice, first_label=0, ordering='default', label_attribute=None)
         pos = nx.get_node_attributes(lattice, 'pos') #use for any shape other than square
-    elif lattice_type == 1:
+    elif lattice_type == 'square':
         lattice = nx.grid_2d_graph(M, N, periodic=True, create_using=None)
         lattice = nx.convert_node_labels_to_integers(lattice, first_label=0, ordering='default', label_attribute=None)
         pos = generate_grid_pos(lattice, M, N) #use for 2D grid network
@@ -119,16 +119,16 @@ def main():
 
     G2 = nx.from_scipy_sparse_array(sparse.csr_matrix(A)) #G2 only hasa the relevant edges
 
-    #clust = nx.clustering(G2)
-    #print(clust)
-    #bc = nx.betweenness_centrality(G2)
-    #print(bc)
-    #den = nx.density(G2)
-    #print(den)
+    clust = nx.clustering(G2)
+    #print('clustering = {}'.format(clust))
+    bc = nx.betweenness_centrality(G2)
+    print('BC = {}'.format(bc))
+    den = nx.density(G2)
+    print('Density = {}'.format(den))
     ne = nx.number_of_edges(G2)
-    print(ne)
+    print('numer of edges = {}'.format(ne))
     nn = nx.number_of_nodes(G2)
-    print(nn)
+    print('number of nodes = {}'.format(nn))
 
     time_elapsed = (time.perf_counter() - time_start)
     print ("checkpoint %5.1f secs" % (time_elapsed))
