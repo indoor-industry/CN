@@ -80,3 +80,7 @@ while t<50:
 #    t += 1
 #A = plt.plot(time, nrg/N_array)
 #plt.show()
+
+#OK provo a definire alcune caratteristiche del network prima qua
+
+
