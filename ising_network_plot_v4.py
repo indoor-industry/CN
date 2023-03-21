@@ -5,12 +5,13 @@ import time
 
 time_start = time.perf_counter()
 
-lattice_type = 'square'            #write square, triangular or hexagonal
-M = 10
-N = 10                      #MxN size of lattice
-J = -0.2                    #spin-spin coupling strenght
-B = 0.1                    #external field (actually is mu*B where mu is magnetic moment of atoms)
-beta = 10                  #inverse temperature (remember k_b is 1)
+lattice_type = 'triangular'            #write square, triangular or hexagonal
+M = 50
+N = 50                      #MxN size of lattice
+J = -1                    #spin-spin coupling strenght
+B = 0
+T = 1                  #external field (actually is mu*B where mu is magnetic moment of atoms)
+beta = 1/T                  #inverse temperature (remember k_b is 1)
 steps = 10                 #evolution timesteps
 
 #creates lattice

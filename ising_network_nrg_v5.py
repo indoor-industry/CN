@@ -10,14 +10,14 @@ import numba as nb
 
 time_start = time.perf_counter()
 
-lattice_type = 'hexagonal'            #write square, triangular or hexagonal
-J = -0.2                        #spin coupling constant
-B = 0.1                        #external magnetic field
+lattice_type = 'square'            #write square, triangular or hexagonal
+J = -1                        #spin coupling constant
+B = 0.5                       #external magnetic field
 M = 30                          #lattice size MxN
 N = 30
 steps = 40                      #number of evolution steps per given temperature
 
-T = np.linspace(0.01, 1.5, 70)   #temperature range as of README
+T = np.linspace(0.1, 3, 50)   #temperature range as of README
 
 #function creates lattice
 def lattice(M, N):

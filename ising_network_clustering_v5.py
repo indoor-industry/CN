@@ -3,6 +3,7 @@ import matplotlib.pyplot as plt
 import numpy as np
 import time
 from scipy import sparse
+from numba import jit
 
 np.random.seed(42)
 
@@ -13,8 +14,8 @@ M = 20
 N = 20
 J = 0.2
 B = 0.0
-beta = 1000
-steps = 20
+T = 1
+steps = 20-1   #steps one step further than V4
 
 #creates lattice
 def lattice(M, N):
@@ -46,10 +47,19 @@ def generate_grid_pos(G, M, N):
         k+=1
     return grid_pos
 
-#assign random spin up/down to nodes
-def spinass(G):
+#function that counts numer of nodes
+def num(G):
+    n=0
     for node in G:
-        G.nodes[node]['spin']=np.random.choice([-1, 1])
+        n+=1
+    return n
+
+#assign random spin up/down to nodes
+def spinass(G, spinlist):
+    k=0
+    for node in G:
+        G.nodes[node]['spin']=spinlist[k]
+        k+=1
 
 #create color map
 def colormap(G):
@@ -62,39 +72,44 @@ def colormap(G):
     return color
 
 #function for single step
-def step(G):
-    G = nx.convert_node_labels_to_integers(G, first_label=0, ordering='default', label_attribute=None)
+@jit(nopython=True)
+def step(A_dense, spinlist, beta):
 
-    #create ordered list of spins
-    spin = nx.get_node_attributes(G, 'spin')
-    spinlist = np.asarray(list(dict.values(spin)))
+    l=0
+    while l <= steps:
     
-    #create adjacency matrix and change all values of adjacency (always 1) with the value of spin of the neighbour
-    Adj = nx.adjacency_matrix(G, nodelist=None, dtype=None, weight='weight')
-    A = Adj.todense()
+        A = np.copy(A_dense)
 
-    for m in range(len(spinlist)):
-        for n in range(len(spinlist)):
-            if A[m,n]==1:
-                A[m,n]=spinlist[n] #assigned to every element in the adj matrix the corresponding node spin value
+        for m in range(len(spinlist)):
+            for n in range(len(spinlist)):
+                if A[m,n]==1:
+                    A[m,n]=spinlist[n] #assigned to every element in the adj matrix the corresponding node spin value
 
-    color = colormap(G)
-
-    #sum over rows to get total spin of neighbouring atoms for each atom
-    nnsum = np.sum(A,axis=1).tolist()
+        #sum over rows to get total spin of neighbouring atoms for each atom
+        nnsum = np.sum(A,axis=1)
     
-    #What decides the flip is
-    dE=-4*J*np.multiply(nnsum, spinlist) + 2*B*spinlist
+        #What decides the flip is
+        dE=-4*J*np.multiply(nnsum, spinlist) + 2*B*spinlist
     
-    #Now flip every spin whose dE<0
-    for offset in range(2):
-        for i in range(offset,len(dE),2):
-            if dE[i]<=0:
-                G.nodes[i]['spin'] *= -1
-            elif np.exp(-dE[i]*beta) > np.random.rand():
-                G.nodes[i]['spin'] *= -1
+        #Now flip every spin whose dE<0
+        for offset in range(2):
+            for i in range(offset,len(dE),2):
+                if dE[i]<=0:
+                    spinlist[i] *= -1
+                elif np.exp(-dE[i]*beta) > np.random.rand():
+                    spinlist[i] *= -1
 
-    return G, A, spinlist, color
+        A = np.copy(A_dense)                        #redo this so that adjacency matrix and spins are on the same step
+
+        for m in range(len(spinlist)):
+            for n in range(len(spinlist)):
+                if A[m,n]==1:
+                    A[m,n]=spinlist[n] #assigned to every element in the adj matrix the corresponding node spin value
+
+        l += 1
+        print(l)
+
+    return A, spinlist
 
 def clustering(A, s):
     for m in range(len(s)):
@@ -108,38 +123,42 @@ def clustering(A, s):
 def main():
     G, pos = lattice(M, N)
 
-    #run it
-    spinass(G)
+    n = num(G)
+
+    spinlist = np.random.choice(np.asarray([-1, 1]), n)  #generate random spins for each node
+    
+    spinass(G, spinlist)
+
+    Adj = nx.adjacency_matrix(G, nodelist=None, dtype=None, weight='weight')
+    A_dense = Adj.todense()
 
     #iterate some steps
-    i=0
-    while i <= steps:
-        G, A, s, color = step(G)
-        i+=1
+    A, s = step(A_dense, spinlist, 1/T)
 
-    A = clustering(A, s)
+    spinass(G, spinlist)
+    color = colormap(G)
 
-    G2 = nx.from_scipy_sparse_array(sparse.csr_matrix(A)) #G2 only hasa the relevant edges
+    A_clust = clustering(A, s)
 
-    clust = nx.clustering(G2)
-    #print('clustering = {}'.format(clust))
-    bc = nx.betweenness_centrality(G2)
-    print('BC = {}'.format(bc))
+    G2 = nx.from_scipy_sparse_array(sparse.csr_matrix(A_clust)) #G2 only hasa the relevant edges
+
     den = nx.density(G2)
     print('Density = {}'.format(den))
     ne = nx.number_of_edges(G2)
     print('numer of edges = {}'.format(ne))
-    nn = nx.number_of_nodes(G2)
-    print('number of nodes = {}'.format(nn))
 
     time_elapsed = (time.perf_counter() - time_start)
-    print ("checkpoint %5.1f secs" % (time_elapsed))
+    print ("checkpoint 1 %5.1f secs" % (time_elapsed))
 
     fig, ax = plt.subplots(1, 2)
     nx.draw(G2, node_color=color, node_size=20, ax=ax[0], edge_color='black', with_labels=False)
     ax[0].set_title('Clustering')
     nx.draw(G, node_color=color, node_size=20, ax=ax[1], edge_color='black', pos=pos, with_labels=False)
     ax[1].set_title('Lattice')
+    
+    time_elapsed = (time.perf_counter() - time_start)
+    print ("checkpoint 2 %5.1f secs" % (time_elapsed))
+    
     plt.show()
 
 if __name__ == "__main__":

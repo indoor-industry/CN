@@ -6,15 +6,15 @@ from numba import jit
 
 time_start = time.perf_counter()
 
-lattice_type = 'hexagonal'            #write square, triangular or hexagonal
+lattice_type = 'square'            #write square, triangular or hexagonal
 J = -0.2                           #spin coupling
-M = 20                             #lattice size MxN
-N = 20
+M = 30                             #lattice size MxN
+N = 30
 steps = 30                         #number of timesteps of evolution per given temperature
-sample = 40                        #number of samples between minimum and maximum values of B and T
+sample = 50                        #number of samples between minimum and maximum values of B and T
 
 T_min = 0.1                        #min temperature to explore
-T_max = 3                        #max temperature to explore
+T_max = 1.5                        #max temperature to explore
 
 B_min = -1                         #min magnetic field to explore
 B_max = 1                          #max magnetic field to explore
