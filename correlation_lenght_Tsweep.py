@@ -6,18 +6,21 @@ import numpy as np
 import time
 from numba import jit
 import numba as nb
+from scipy import optimize
 
 time_start = time.perf_counter()
 
-lattice_type = 'square'            #write square, triangular or hexagonal
-J = -1                       #spin coupling constant
-B = 0.1                      #external magnetic field
-M = 30                          #lattice size MxN
-N = 30
-steps = 40                      #number of evolution steps per given temperature
-max_r = 10
+np.random.seed(42)
 
-T = np.linspace(0.1, 0.7, 10)
+lattice_type = 'square'            #write square, triangular or hexagonal
+J = -0.2                       #spin coupling constant
+B = 0                     #external magnetic field
+M = 50                          #lattice size MxN
+N = 50
+steps = 40                      #number of evolution steps per given temperature
+max_r = 20
+
+T = np.linspace(0.1, 0.8, 20)
 
 #ones = np.ones(len(T))
 #beta = ones/T
@@ -70,6 +73,7 @@ def step(A_dense, beta, num, nn_number, lenghts):
         #What decides the flip is
         dE = -4*J*np.multiply(nnsum, spinlist) + 2*B*spinlist    #change in energy
 
+        np.random.seed(np.random.randint(100000000))
         #change spins if energetically favourable or according to thermal noise
         for offset in range(2):                 #offset to avoid interfering with neighboring spins while rastering
             for i in range(offset,len(dE),2):
@@ -78,6 +82,7 @@ def step(A_dense, beta, num, nn_number, lenghts):
                 elif np.exp(-dE[i]*beta) > np.random.rand():     #thermal noise
                     spinlist[i] *= -1
         l+=1
+        np.random.seed(42)
         #print(l)
     
     r = []
@@ -115,9 +120,24 @@ def main():
 
     lenghts = distances(n, spl)
 
+    xis = []
     for i in range(len(T)):
         #iterate steps and sweep trough beta
         corr_r, r = step(A_dense, 1/T[i], n, nn_number, lenghts)
+
+        def func(x, cl):
+            return np.exp(-x/cl)
+
+        xi, cov = optimize.curve_fit(func, r, corr_r)
+        print(xi)
+        xis.append(xi)
+
+        y=[]
+        for i in range(max_r):
+            y.append(func(r[i], xi).item())
+        #print(y)
+    
+        plt.plot(r, y)
 
         plt.plot(r, corr_r, label='T={:10.3f}'.format(T[i]))
 
@@ -126,6 +146,10 @@ def main():
     time_elapsed = (time.perf_counter() - time_start)
     print ("checkpoint %5.1f secs" % (time_elapsed))
 
+    plt.show()
+
+    plt.scatter(T, xis)
+    plt.title('correlation lenght vs T')
     plt.show()
 
 if __name__ =="__main__":

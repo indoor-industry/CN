@@ -10,13 +10,13 @@ from scipy import optimize
 time_start = time.perf_counter()
 
 lattice_type = 'square'            #write square, triangular or hexagonal
-J = -0.2                        #spin coupling constant
-B = 0.1                     #external magnetic field
+J = -1                        #spin coupling constant
+B = 0                     #external magnetic field
 M = 50                          #lattice size MxN
 N = 50
 steps = 40                      #number of evolution steps per given temperature
 max_r = 20
-T = 0.5
+T = 0.02
 
 #function creates lattice
 def lattice(M, N):
@@ -125,7 +125,7 @@ def main():
     y=[]
     for i in range(max_r):
         y.append(func(r[i], xi).item())
-    print(y)
+    #print(y)
     
     plt.plot(r, y)
 

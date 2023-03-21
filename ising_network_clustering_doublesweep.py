@@ -10,10 +10,22 @@ time_start = time.perf_counter()
 lattice_type = 'square'            #write square, triangular or hexagonal
 M = 20
 N = 20
-J = 0.2
-B = 0.0
-T = 1
-steps = 20-1   #steps one step further than V4
+J = 0.8
+steps = 20   #steps one step further than V4
+sample = 10
+
+T_min = 0.1                        #min temperature to explore
+T_max = 1.5                        #max temperature to explore
+
+B_min = -1                         #min magnetic field to explore
+B_max = 1                          #max magnetic field to explore
+
+T = np.linspace(T_min, T_max, sample)   #temperature range to explore
+
+ones = np.ones(len(T))                  #convert to inverse temperature
+beta = ones/T
+
+B = np.linspace(B_min, B_max, sample)   #External magnetic field range to explore
 
 #creates lattice
 def lattice(M, N):
@@ -71,8 +83,7 @@ def colormap(G):
 
 #function for single step
 @jit(nopython=True)
-def step(A_dense, spinlist, beta):
-
+def step(A_dense, spinlist, beta, magfield):
     l=0
     while l <= steps:
     
@@ -87,7 +98,7 @@ def step(A_dense, spinlist, beta):
         nnsum = np.sum(A,axis=1)
     
         #What decides the flip is
-        dE=-4*J*np.multiply(nnsum, spinlist) + 2*B*spinlist
+        dE=-4*J*np.multiply(nnsum, spinlist) + 2*magfield*spinlist
     
         #Now flip every spin whose dE<0
         for offset in range(2):
@@ -105,7 +116,7 @@ def step(A_dense, spinlist, beta):
                     A[m,n]=spinlist[n] #assigned to every element in the adj matrix the corresponding node spin value
 
         l += 1
-        print(l)
+        #print(l)
 
     return A, spinlist
 
@@ -130,30 +141,32 @@ def main():
     Adj = nx.adjacency_matrix(G, nodelist=None, dtype=None, weight='weight')
     A_dense = Adj.todense()
 
-    #iterate some steps
-    A, s = step(A_dense, spinlist, 1/T)
 
-    spinass(G, spinlist)
-    color = colormap(G)
+    den_beta_J = np.empty((sample, sample))
 
-    A_clust = clustering(A, s)
+    for i in range(len(B)):
+        for j in range(len(beta)):              #run through different combinations of B and T
+            #iterate some steps
+            A, s = step(A_dense, spinlist, 1/T[j], B[i])
 
-    G2 = nx.from_scipy_sparse_array(sparse.csr_matrix(A_clust)) #G2 only hasa the relevant edges
+            spinass(G, spinlist)
+            color = colormap(G)
 
-    den = nx.density(G2)
-    print('Density = {}'.format(den))
-    ne = nx.number_of_edges(G2)
-    print('numer of edges = {}'.format(ne))
+            A_clust = clustering(A, s)
+
+            G2 = nx.from_scipy_sparse_array(sparse.csr_matrix(A_clust)) #G2 only hasa the relevant edges
+
+            den = nx.density(G2)
+
+            den_beta_J[i, j] = den          #store magnetisation values
 
     time_elapsed = (time.perf_counter() - time_start)
     print ("checkpoint 1 %5.1f secs" % (time_elapsed))
 
-    fig, ax = plt.subplots(1, 2)
-    nx.draw(G2, node_color=color, node_size=20, ax=ax[0], edge_color='black', with_labels=False)
-    ax[0].set_title('Clustering')
-    nx.draw(G, node_color=color, node_size=20, ax=ax[1], edge_color='black', pos=pos, with_labels=False)
-    ax[1].set_title('Lattice')
-    
+    ext = [T_min, T_max, B_min, B_max]
+    plt.imshow(den_beta_J, cmap = 'coolwarm', origin='lower', extent=ext, aspect='auto', interpolation='spline36')
+    plt.colorbar()
+
     time_elapsed = (time.perf_counter() - time_start)
     print ("checkpoint 2 %5.1f secs" % (time_elapsed))
     

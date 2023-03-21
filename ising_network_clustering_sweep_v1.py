@@ -11,10 +11,10 @@ lattice_type = 'square'            #write square, triangular or hexagonal
 M = 30
 N = 30
 J = -0.2
-B = 0
+B = 0.1
 steps = 30   #steps one step further than V4
 
-T = np.linspace(0.22, 0.3, 50)
+T = np.linspace(0.1, 0.5, 30)
 ones = np.ones(len(T))
 beta = ones/T
 

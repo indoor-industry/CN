@@ -5,19 +5,18 @@ import time
 from numba import jit
 import numba as nb
 
-#seed = 42                        #debug
-#np.random.seed(seed)
+
 
 time_start = time.perf_counter()
 
 lattice_type = 'square'            #write square, triangular or hexagonal
-J = -0.2                        #spin coupling constant
+J = -1                       #spin coupling constant
 B = 0                       #external magnetic field
 M = 30                          #lattice size MxN
 N = 30
-steps = 40                      #number of evolution steps per given temperature
+steps = 200                      #number of evolution steps per given temperature
 
-T = np.linspace(0.1, 2, 50)   #temperature range as of README
+T = np.linspace(0.1, 0.4, 50)   #temperature range as of README
 
 #function creates lattice
 def lattice(M, N):
@@ -38,6 +37,8 @@ def num(G):
 
 @jit(nopython=True)
 def step(A_dense, beta, num):
+
+    rand_spins = np.random.choice(np.asarray([-1, 1]), num)   #create random spins for nodes
     
     cv_beta = nb.typed.List.empty_list(nb.f8)
     xi_beta = nb.typed.List.empty_list(nb.f8)
@@ -45,8 +46,9 @@ def step(A_dense, beta, num):
     M_beta = nb.typed.List.empty_list(nb.f8)
 
     for j in range(len(beta)):                      #raster trough temperatures
-        
-        spinlist = np.random.choice(np.asarray([-1, 1]), num)   #create random spins for nodes
+
+        spinlist = np.copy(rand_spins)
+        #print(spinlist)
 
         l=0
         E_time = nb.typed.List.empty_list(nb.f8)
@@ -70,19 +72,17 @@ def step(A_dense, beta, num):
             M = np.sum(spinlist)                                       #total magnetisation
 
             #change spins if energetically favourable or according to thermal noise
-            #np.random.seed(np.random.randint(1000000000))   #for debug purposes
             for offset in range(2):                 #offset to avoid interfering with neighboring spins while rastering
                 for i in range(offset,len(dE),2):
                     if dE[i]<=0:
                         spinlist[i] *= -1
                     elif np.exp(-dE[i]*beta[j]) > np.random.rand():     #thermal noise
                         spinlist[i] *= -1
-            #np.random.seed(seed)      #debug
 
             E_time.append(E)            #list of energy trough time
             M_time.append(M)            #list of magnetisation trough time
             l+=1
-
+        #print(spinlist)
         def variance(data):             #variance function needed for specific heat and magnetic susceptibility
             # Number of observations
             n = len(data)
@@ -94,13 +94,18 @@ def step(A_dense, beta, num):
             variance = sum(deviations) / n
             return variance
 
-        var_E = variance(E_time[steps//2:])     #variance of energy (start acquiring half trough evolution to let system reach equilibrium)
-        var_M = variance(M_time[steps//2:])     #same as above for magnetisation
+        def mean(list):
+            return sum(list)/len(list)
+
+        var_E = variance(E_time[100:])     #variance of energy (start acquiring half trough evolution to let system reach equilibrium)
+        var_M = variance(M_time[100:])     #same as above for magnetisation
+        mean_E = mean(E_time[100:])
+        mean_M = mean(M_time[100:])
 
         cv_beta.append(var_E*beta[j]**2)    #used to plot specific heat against temperature
         xi_beta.append(var_M*beta[j])       #used to plot magnetic susceptibility against temperature
-        E_beta.append(E_time[len(E_time)-1])        #used to plot energy against temperature
-        M_beta.append(M_time[len(M_time)-1])        #used to plot magnetisation against temperature
+        E_beta.append(mean_E)               #used to plot energy against temperature
+        M_beta.append(mean_M)               #used to plot magnetisation against temperature
 
         print(j)
 
