@@ -10,15 +10,15 @@ time_start = time.perf_counter()
 lattice_type = 'square'            #write square, triangular or hexagonal
 M = 20
 N = 20
-J = -0.2
-steps = 30
-sample = 20
+J = 0.8
+steps = 20   #steps one step further than V4
+sample = 10
 
 T_min = 0.1                        #min temperature to explore
-T_max = 1.5                        #max temperature to explore
+T_max = 1                    #max temperature to explore
 
-B_min = -1                         #min magnetic field to explore
-B_max = 1                          #max magnetic field to explore
+B_min = 0.1#-1                         #min magnetic field to explore
+B_max = 1#1                          #max magnetic field to explore
 
 T = np.linspace(T_min, T_max, sample)   #temperature range to explore
 
@@ -119,6 +119,7 @@ def main():
 
 
     den_beta_J = np.empty((sample, sample))
+    btw_cen_beta_J = np.empty((sample, sample))
 
     for i in range(len(B)):
         for j in range(len(beta)):              #run through different combinations of B and T
@@ -132,16 +133,49 @@ def main():
             G2 = nx.from_scipy_sparse_array(sparse.csr_matrix(A_clust)) #G2 only hasa the relevant edges
 
             den = nx.density(G2)
+            btw = nx.betweenness_centrality(G2).get(7)
+            #print(type(btw))
+
 
             den_beta_J[i, j] = den          #store density values
-        print('{}/{}'.format(i+1, sample))
+            print('{}/{}'.format(i+1, sample))
+            btw_cen_beta_J[i, j] = btw
+            #print(btw.keys())
 
     time_elapsed = (time.perf_counter() - time_start)
     print ("checkpoint 1 %5.1f secs" % (time_elapsed))
 
-    ext = [T_min, T_max, B_min, B_max]
-    plt.imshow(den_beta_J, cmap = 'coolwarm', origin='lower', extent=ext, aspect='auto', interpolation='spline36')
-    plt.colorbar()
+    y_max = T_max / J
+    y_min = T_min / J
+    x_max = B_max / J 
+    x_min = B_min / J
+
+    ext = [x_min, x_max, y_min, y_max]
+    #plt.imshow(den_beta_J, cmap = 'coolwarm', origin='lower', extent=ext, aspect='auto', interpolation='spline36')
+    #plt.colorbar()
+
+    #plt.show()
+
+    #plt.imshow(btw_cen_beta_J, cmap = 'coolwarm', origin='lower', extent=ext, aspect='auto', interpolation='spline36')
+    #plt.colorbar()
+
+    fig = plt.figure(figsize=(15, 15))
+    ax1 = fig.add_subplot(2, 2, 1)
+    ax2 = fig.add_subplot(2, 2, 2)
+    
+    fig.suptitle('{}, size {}x{}, J={}, ev_steps={}'.format(lattice_type, M, N, J, steps))
+    
+    im1 = ax1.imshow(den_beta_J, cmap = 'coolwarm', origin='lower', extent=ext, aspect='auto', interpolation='spline36')
+    ax1.set_title('Density')
+    fig.colorbar(im1, ax=ax1)
+    ax1.set_ylabel('T/J')
+    ax1.set_xlabel('B/J')
+    
+    im2 = ax2.imshow(btw_cen_beta_J, cmap = 'coolwarm', origin='lower', extent=ext, aspect='auto', interpolation='spline36')
+    ax2.set_title('Betweeness')
+    fig.colorbar(im2, ax=ax2)
+    ax2.set_ylabel('B/J')
+    ax2.set_xlabel('T/J')
 
     time_elapsed = (time.perf_counter() - time_start)
     print ("checkpoint 2 %5.1f secs" % (time_elapsed))
