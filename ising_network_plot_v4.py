@@ -5,13 +5,12 @@ import time
 
 time_start = time.perf_counter()
 
-lattice_type = 'triangular'            #write square, triangular or hexagonal
-M = 50
-N = 50                      #MxN size of lattice
-J = -1                    #spin-spin coupling strenght
+lattice_type = 'square'            #write square, triangular or hexagonal
+M = 30
+N = 30                      #MxN size of lattice
+J = -0.2                    #spin-spin coupling strenght
 B = 0
 T = 1                  #external field (actually is mu*B where mu is magnetic moment of atoms)
-beta = 1/T                  #inverse temperature (remember k_b is 1)
 steps = 10                 #evolution timesteps
 
 #creates lattice
@@ -81,9 +80,11 @@ def step(G):
 
     for offset in range(2):
         for i in range(offset,len(dE),2):
-            if dE[i]<=0:
+            if dE[i]<0:
                 G.nodes[i]['spin'] *= -1
-            elif np.exp(-dE[i]*beta) > np.random.rand():
+            elif dE[i] == 0:
+                continue
+            elif np.exp(-dE[i]/T) > np.random.rand():
                 G.nodes[i]['spin'] *= -1    
 
     return G

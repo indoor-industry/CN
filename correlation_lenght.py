@@ -16,7 +16,7 @@ M = 50                          #lattice size MxN
 N = 50
 steps = 40                      #number of evolution steps per given temperature
 max_r = 20
-T = 0.02
+T = 0.1
 
 #function creates lattice
 def lattice(M, N):
@@ -70,8 +70,10 @@ def step(A_dense, beta, num, nn_number, lenghts):
         #change spins if energetically favourable or according to thermal noise
         for offset in range(2):                 #offset to avoid interfering with neighboring spins while rastering
             for i in range(offset,len(dE),2):
-                if dE[i]<=0:
+                if dE[i]<0:
                     spinlist[i] *= -1
+                elif dE[i]==0:
+                    continue
                 elif np.exp(-dE[i]*beta) > np.random.rand():     #thermal noise
                     spinlist[i] *= -1
 

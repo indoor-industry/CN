@@ -12,7 +12,7 @@ J = -0.2                       #spin coupling constant
 B = 0                       #external magnetic field
 M = 30                          #lattice size MxN
 N = 30
-steps = 50                      #number of evolution steps per given temperature
+steps = 200                      #number of evolution steps per given temperature
 
 T = np.linspace(0.1, 2, 50)   #temperature range as of README
 
@@ -53,6 +53,8 @@ def step(A_dense, beta, num):
         l=0
         E_time = nb.typed.List.empty_list(nb.f8)
         M_time = nb.typed.List.empty_list(nb.f8)
+
+        w = nb.typed.List.empty_list(nb.f8)
         while l <= steps:                               #evolve trough steps number of timesteps
 
             A = np.copy(A_dense)                        #take new copy of adj. matrix at each step because it gets changed trough the function
@@ -82,27 +84,34 @@ def step(A_dense, beta, num):
                         spinlist[i] *= -1
 
             E_time.append(E)            #list of energy trough time
+
+            w.append(np.exp(-E*beta[j]))
+
             M_time.append(abs(M))            #list of magnetisation trough time
             l+=1
-        #print(spinlist)
-        def variance(data):             #variance function needed for specific heat and magnetic susceptibility
-            # Number of observations
-            size = len(data)
-            # Mean of the data
-            mean = sum(data) / size
-            # Square deviations
-            deviations = [(x - mean) ** 2 for x in data]
-            # Variance
-            variance = sum(deviations) / size
+        
+        def weighted_variance(data, weights):             #variance function needed for specific heat and magnetic susceptibility
+            mean = 0
+            mean2 = 0
+            for e in range(len(data)):
+                mean += weights[e]*data[e]
+                mean2 += weights[e]*(data[e]**2)
+            norm_mean = mean/sum(weights)
+            norm_mean2 = mean2/sum(weights)
+            variance = norm_mean2 - norm_mean**2
             return variance
 
-        def mean(list):
-            return sum(list)/len(list)
+        def weighted_mean(data, weights):
+            mean = 0
+            for i in range(len(data)):
+                mean += weights[i]*data[i]
+            norm_mean = mean/sum(weights)
+            return norm_mean
 
-        var_E = variance(E_time[steps//2:])     #variance of energy (start acquiring half trough evolution to let system reach equilibrium)
-        var_M = variance(M_time[steps//2:])     #same as above for magnetisation
-        mean_E = mean(E_time[steps//2:])
-        mean_M = mean(M_time[steps//2:])
+        var_E = weighted_variance(E_time[steps//2:], w[steps//2:])     #variance of energy (start acquiring half trough evolution to let system reach equilibrium)
+        var_M = weighted_variance(M_time[steps//2:], w[steps//2:])     #same as above for magnetisation
+        mean_E = weighted_mean(E_time[steps//2:], w[steps//2:])
+        mean_M = weighted_mean(M_time[steps//2:], w[steps//2:])
 
         cv_beta.append(var_E*beta[j]**2)    #used to plot specific heat against temperature
         xi_beta.append(var_M*beta[j])       #used to plot magnetic susceptibility against temperature

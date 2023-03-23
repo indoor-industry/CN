@@ -8,12 +8,12 @@ from numba import jit
 time_start = time.perf_counter()
 
 lattice_type = 'square'            #write square, triangular or hexagonal
-M = 20
-N = 20
-J = 0.2
-B = 0.0
-T = 1
-steps = 20-1   #steps one step further than V4
+M = 50
+N = 50
+J = -1
+B = 0
+T = 0.1
+steps = 30
 
 #creates lattice
 def lattice(M, N):
@@ -92,8 +92,10 @@ def step(A_dense, spinlist, beta):
         #Now flip every spin whose dE<0
         for offset in range(2):
             for i in range(offset,len(dE),2):
-                if dE[i]<=0:
+                if dE[i]<0:
                     spinlist[i] *= -1
+                elif dE[i]==0:
+                    continue
                 elif np.exp(-dE[i]*beta) > np.random.rand():
                     spinlist[i] *= -1
 

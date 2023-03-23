@@ -76,8 +76,10 @@ def step(A_dense, beta, B, num):
                 #update spin configuration if energetically favourable or if thermal fluctuations contribute
                 for offset in range(2):                 #offset to avoid interfering with neighboring spins while rastering trough the lattice
                     for l in range(offset,len(dE),2):
-                        if dE[l]<=0:
+                        if dE[l]<0:
                             spinlist[l] *= -1
+                        elif dE[l]==0:
+                            continue
                         elif np.exp(-dE[l]*beta[j]) > np.random.rand():    #thermal noise
                             spinlist[l] *= -1   
                 k+=1

@@ -11,10 +11,10 @@ lattice_type = 'square'            #write square, triangular or hexagonal
 M = 30
 N = 30
 J = -0.2
-B = 0.1
+B = 0
 steps = 30   #steps one step further than V4
 
-T = np.linspace(0.1, 0.5, 30)
+T = np.linspace(0.2, 0.3, 30)
 ones = np.ones(len(T))
 beta = ones/T
 
@@ -97,6 +97,8 @@ def step(A_dense, spinlist, beta):
             for i in range(offset,len(dE),2):
                 if dE[i]<=0:
                     spinlist[i] *= -1
+                elif dE[i]==0:
+                    continue
                 elif np.exp(-dE[i]*beta) > np.random.rand():
                     spinlist[i] *= -1
 

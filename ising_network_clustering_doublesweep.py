@@ -10,9 +10,9 @@ time_start = time.perf_counter()
 lattice_type = 'square'            #write square, triangular or hexagonal
 M = 20
 N = 20
-J = 0.8
-steps = 20   #steps one step further than V4
-sample = 10
+J = -0.2
+steps = 30
+sample = 20
 
 T_min = 0.1                        #min temperature to explore
 T_max = 1.5                        #max temperature to explore
@@ -32,30 +32,14 @@ def lattice(M, N):
     if lattice_type == 'hexagonal':
         lattice = nx.hexagonal_lattice_graph(M, N, periodic=True, with_positions=True, create_using=None)
         lattice = nx.convert_node_labels_to_integers(lattice, first_label=0, ordering='default', label_attribute=None)
-        pos = nx.get_node_attributes(lattice, 'pos') #use for any shape other than square
     elif lattice_type == 'triangular':
         lattice = nx.triangular_lattice_graph(M, N, periodic=True, with_positions=True, create_using=None)
         lattice = nx.convert_node_labels_to_integers(lattice, first_label=0, ordering='default', label_attribute=None)
-        pos = nx.get_node_attributes(lattice, 'pos') #use for any shape other than square
     elif lattice_type == 'square':
         lattice = nx.grid_2d_graph(M, N, periodic=True, create_using=None)
         lattice = nx.convert_node_labels_to_integers(lattice, first_label=0, ordering='default', label_attribute=None)
-        pos = generate_grid_pos(lattice, M, N) #use for 2D grid network
 
-    return lattice, pos
-
-def generate_grid_pos(G, M, N):
-    p = []
-    for m in range(M):
-        for n in range(N):
-            p.append((n, m))
-    
-    grid_pos = {}
-    k = 0
-    for node in G:
-        grid_pos[node]=p[k]
-        k+=1
-    return grid_pos
+    return lattice
 
 #function that counts numer of nodes
 def num(G):
@@ -70,16 +54,6 @@ def spinass(G, spinlist):
     for node in G:
         G.nodes[node]['spin']=spinlist[k]
         k+=1
-
-#create color map
-def colormap(G):
-    color=[]
-    for node in G:
-        if G.nodes[node]['spin']==1:
-            color.append('red')
-        else:
-            color.append('black')
-    return color
 
 #function for single step
 @jit(nopython=True)
@@ -103,8 +77,10 @@ def step(A_dense, spinlist, beta, magfield):
         #Now flip every spin whose dE<0
         for offset in range(2):
             for i in range(offset,len(dE),2):
-                if dE[i]<=0:
+                if dE[i]<0:
                     spinlist[i] *= -1
+                elif dE[i]==0:
+                    continue
                 elif np.exp(-dE[i]*beta) > np.random.rand():
                     spinlist[i] *= -1
 
@@ -130,7 +106,7 @@ def clustering(A, s):
     return A
 
 def main():
-    G, pos = lattice(M, N)
+    G = lattice(M, N)
 
     n = num(G)
 
@@ -150,7 +126,6 @@ def main():
             A, s = step(A_dense, spinlist, 1/T[j], B[i])
 
             spinass(G, spinlist)
-            color = colormap(G)
 
             A_clust = clustering(A, s)
 
@@ -158,7 +133,8 @@ def main():
 
             den = nx.density(G2)
 
-            den_beta_J[i, j] = den          #store magnetisation values
+            den_beta_J[i, j] = den          #store density values
+        print('{}/{}'.format(i+1, sample))
 
     time_elapsed = (time.perf_counter() - time_start)
     print ("checkpoint 1 %5.1f secs" % (time_elapsed))
