@@ -2,156 +2,189 @@ import networkx as nx
 import matplotlib.pyplot as plt
 import numpy as np
 import time
-import matplotlib.colors
+from scipy import sparse
+from numba import jit
 
-lattice_type = 2            #select 1 for square, 2 for triangular, 3 for hexagonal
-J = 0.2                         #coupling constant
-h = 0.02                          #external field
-M = 3 #rows                           #lattice size MxN
-N = 2 #columns
-steps = 10                      #number of steps per given temperature
-pbc = False #periodic boundary conditions
-   
-#beta = np.logspace(1, 4, num=4, base=10.0)   #array of temperatures to sweep as of README
-beta = 10 #np.linspace(0.1, 10000, 1000)
-#spero abbiano senso le unità di misura
-beta_lsp = np.linspace(0.1, 1000, 100)
-h_lsp = np.linspace(0.1, 1000, 100)
+time_start = time.perf_counter()
+np.random.seed(42)
 
-#function creates lattice
-def lattice(M, N):
-    if lattice_type == 3:
-        lattice = nx.hexagonal_lattice_graph(M, N, periodic=pbc, with_positions=True, create_using=None)
-    elif lattice_type == 2:
-        lattice = nx.triangular_lattice_graph(M, N, periodic=pbc, with_positions=True, create_using=None)
-    elif lattice_type == 1:
-        lattice = nx.grid_2d_graph(M, N, periodic=pbc, create_using=None)
+lt_vec = ['hexagonal', 'square', 'triangular']            #write square, triangular or hexagonal
+M = 10
+N = 10
+J = 0.8
+steps = 20   #steps one step further than V4
+sample = 10
+
+T_min = 0.1                        #min temperature to explore
+T_max = 1.5                    #max temperature to explore
+
+B_min = 0.1#-1                         #min magnetic field to explore
+B_max = 1.5#1                          #max magnetic field to explore
+
+T = np.linspace(T_min, T_max, sample)   #temperature range to explore
+
+ones = np.ones(len(T))                  #convert to inverse temperature
+beta = ones/T
+
+B = np.linspace(B_min, B_max, sample)   #External magnetic field range to explore
+
+#creates lattice
+def lattice(M, N, lattice_type):
+    if lattice_type == 'hexagonal':
+        lattice = nx.hexagonal_lattice_graph(M, N, periodic=True, with_positions=True, create_using=None)
+        lattice = nx.convert_node_labels_to_integers(lattice, first_label=0, ordering='default', label_attribute=None)
+    elif lattice_type == 'triangular':
+        lattice = nx.triangular_lattice_graph(M, N, periodic=True, with_positions=True, create_using=None)
+        lattice = nx.convert_node_labels_to_integers(lattice, first_label=0, ordering='default', label_attribute=None)
+    elif lattice_type == 'square':
+        lattice = nx.grid_2d_graph(M, N, periodic=True, create_using=None)
+        lattice = nx.convert_node_labels_to_integers(lattice, first_label=0, ordering='default', label_attribute=None)
+
     return lattice
 
-#creates lattice con posizione????
-def lattice_v2(M, N):
-    if lattice_type == 3:
-        lattice = nx.hexagonal_lattice_graph(M, N, periodic=pbc, with_positions=True, create_using=None)
-        lattice = nx.convert_node_labels_to_integers(lattice, first_label=0, ordering='default', label_attribute=None)
-        pos = nx.get_node_attributes(lattice, 'pos') #use for any shape other than square
-    elif lattice_type == 2:
-        lattice = nx.triangular_lattice_graph(M, N, periodic=pbc, with_positions=True, create_using=None)
-        lattice = nx.convert_node_labels_to_integers(lattice, first_label=0, ordering='default', label_attribute=None)
-        pos = nx.get_node_attributes(lattice, 'pos') #use for any shape other than square
-    elif lattice_type == 1:
-        lattice = nx.grid_2d_graph(M, N, periodic=pbc, create_using=None)
-        lattice = nx.convert_node_labels_to_integers(lattice, first_label=0, ordering='default', label_attribute=None)
-        pos = generate_grid_pos(lattice, M, N) #use for 2D grid network
-
-    return lattice, pos
-
-#function assigns random spin up/down to nodes
-def spinass(G):
-    i = 0
+#function that counts numer of nodes
+def num(G):
+    n=0
     for node in G:
-        G.nodes[node]['spin'] = np.random.choice([-1, 1])
-        G.nodes[node]['label'] = i
-        i += 1
+        n+=1
+    return n
 
-#Questa funzione è letteralmente l'amiltoniana e quindi l'energia totele del sistema
-def H(G):
-    Adj = nx.adjacency_matrix(G).todense() #mi serve la matrice di adiacenza per capire se c'è un collegamento tra i due nodi!
-    E = 0
-    for i in G.nodes():
-        for j in G.nodes():
-            if Adj[G.nodes[i]['label']][G.nodes[j]['label']] != 0: #ci potrebbe essere un modo più efficientedi farlo ma mi da come risultato un (1,2) che non so cosa sia
-                E += -J*G.nodes[i]["spin"]*G.nodes[j]["spin"]
-            E += - h*G.nodes[i]['spin'] #questa è la parte di energia relativa al campo
-    return E
-
-#algoritmo metropolis preso da wikipedia/Emiliano
-def Metropolis(G):
-    k = np.random.choice(G.number_of_nodes()) #scelgo un nodo random
-    E = H(G)    
-    for i in G.nodes():
-        if k != 0 and G.nodes[i]['label'] == k:
-            G.nodes[i]['spin'] *= -1 #spin flip
-            if E - H(G) > 0 and np.random.rand() < np.exp(-(E - H(G))*beta):
-                G.nodes[i]['spin'] *= -1 #se è piu alta c'è perdita di energia e quidi ritorno a prima
-    #return G
-
-#si potrebbe migliorare quella cosa della Adj e capire dove inserire il continue perchè non serve che scorra tutti gi nodi e capire se la k potrebbe essere anche 0
-
-def Metropolis_v2(G,x,y): #qui voglio fare returnare le varie liste
-    beta = 1/(y*J)
-    k = np.random.choice(G.number_of_nodes()) #scelgo un nodo random
-    E = H(G) 
-    btw_cnt = np.array([])
-    for b in range(len(beta)):
-        for j in range(steps):
-            for i in G.nodes():
-                if k != 0 and G.nodes[i]['label'] == k:
-                    G.nodes[i]['spin'] *= -1 #spin flip
-                    if E - H(G) > 0 and np.random.rand() < np.exp(-(E - H(G))*beta[b]):
-                        G.nodes[i]['spin'] *= -1 #se è piu alta c'è perdita di energia e quidi ritorno a prima
-        np.append(btw_cnt, nx.betweenness_centrality(G)[3])
-    return btw_cnt
-
-def ciao(x,y):
-    c = x*y 
-    return c
-        
-
-#creates color map
-def colormap(G):
-    color=[]
+#assign random spin up/down to nodes
+def spinass(G, spinlist):
+    k=0
     for node in G:
-        if G.nodes[node]['spin']==1:
-            color.append('red')
-        else:
-            color.append('black')
-    return color
+        G.nodes[node]['spin']=spinlist[k]
+        k+=1
 
+#function for single step
+@jit(nopython=True)
+def step(A_dense, spinlist, beta, magfield):
+    l=0
+    while l <= steps:
+    
+        A = np.copy(A_dense)
+
+        for m in range(len(spinlist)):
+            for n in range(len(spinlist)):
+                if A[m,n]==1:
+                    A[m,n]=spinlist[n] #assigned to every element in the adj matrix the corresponding node spin value
+
+        #sum over rows to get total spin of neighbouring atoms for each atom
+        nnsum = np.sum(A,axis=1)
+    
+        #What decides the flip is
+        dE=-4*J*np.multiply(nnsum, spinlist) + 2*magfield*spinlist
+    
+        #Now flip every spin whose dE<0
+        for offset in range(2):
+            for i in range(offset,len(dE),2):
+                if dE[i]<0:
+                    spinlist[i] *= -1
+                elif dE[i]==0:
+                    continue
+                elif np.exp(-dE[i]*beta) > np.random.rand():
+                    spinlist[i] *= -1
+
+        A = np.copy(A_dense)                        #redo this so that adjacency matrix and spins are on the same step
+
+        for m in range(len(spinlist)):
+            for n in range(len(spinlist)):
+                if A[m,n]==1:
+                    A[m,n]=spinlist[n] #assigned to every element in the adj matrix the corresponding node spin value
+
+        l += 1
+        #print(l)
+
+    return A, spinlist
+
+def clustering(A, s):
+    for m in range(len(s)):
+        for n in range(len(s)):
+            if A[m, n] == s[m]:
+                A[m, n] = 1
+            else:
+                A[m,n] = 0          #now matrix A represents which adjacent atoms have the same spin value
+    return A
 
 def main():
+      for lt in lt_vec:
+        for c in range(4):
 
-    #create lattice
-    G, pos = lattice_v2(M, N)
-    #assegno gli spin
-    spinass(G)
+            G = lattice(M, N, lt)
 
-    #color = colormap(G)
-    #nx.draw(G, node_color=color, node_size=100, edge_color='white', pos=pos, with_labels=False)
-    #plt.show() 
+            n = num(G)
 
-    #for i in range(steps):
-    #    Metropolis(G)
+            spinlist = np.random.choice(np.asarray([-1, 1]), n)  #generate random spins for each node
+            
+            spinass(G, spinlist)
 
-    #color = colormap(G)
-    #nx.draw(G, node_color=color, node_size=100, edge_color='white', pos=pos, with_labels=False)
-    #plt.show() 
+            Adj = nx.adjacency_matrix(G, nodelist=None, dtype=None, weight='weight')
+            A_dense = Adj.todense()
 
-    #ho visto che nel paper plotta
-    #y = 1 / (beta_lsp*J)
-    #x = h_lsp / J
-    
 
-    x = y = np.linspace(0.1,1.5)
-    X,Y = np.meshgrid(x,x)
-    print(type(X))
-    z = Metropolis_v2(G,X,Y)
-    print(type(z))
-    Z = np.exp(-(X**2+Y**2))
-    fig, (ax, ax2) = plt.subplots(ncols=2)
+            den_beta_J = np.empty((sample, sample))
+            btw_cen_beta_J = np.empty((sample, sample))
 
-    colors=["red", "orange", "gold", "limegreen", "k", 
-            "#550011", "purple", "seagreen"]
+            for i in range(len(B)):
+                for j in range(len(beta)):              #run through different combinations of B and T
+                    #iterate some steps
+                    A, s = step(A_dense, spinlist, 1/T[j], B[i])
 
-    ax.set_title("contour with color list")
-    contour = ax.contourf(X,Y,Z, colors=colors)
+                    spinass(G, spinlist)
 
-    ax2.set_title("contour with colormap")
-    cmap = matplotlib.colors.ListedColormap(colors)
-    contour = ax2.contourf(X,Y,z, cmap=cmap)
-    fig.colorbar(contour)
+                    A_clust = clustering(A, s)
 
-    plt.show()
-        
+                    G2 = nx.from_scipy_sparse_array(sparse.csr_matrix(A_clust)) #G2 only hasa the relevant edges
 
-if __name__ =="__main__":
+                    den = nx.density(G2)
+                    btw = nx.betweenness_centrality(G2).get(7)
+                    #print(type(btw))
+
+
+                    den_beta_J[i, j] = den          #store density values
+                    print('{}/{}'.format(i+1, sample))
+                    btw_cen_beta_J[i, j] = btw
+                    #print(btw.keys())
+
+            time_elapsed = (time.perf_counter() - time_start)
+            print ("checkpoint 1 %5.1f secs" % (time_elapsed))
+
+            y_max = T_max / J
+            y_min = T_min / J
+            x_max = B_max / J 
+            x_min = B_min / J
+
+            ext = [x_min, x_max, y_min, y_max]
+            #plt.imshow(den_beta_J, cmap = 'coolwarm', origin='lower', extent=ext, aspect='auto', interpolation='spline36')
+            #plt.colorbar()
+
+            #plt.show()
+
+            #plt.imshow(btw_cen_beta_J, cmap = 'coolwarm', origin='lower', extent=ext, aspect='auto', interpolation='spline36')
+            #plt.colorbar()
+
+            fig = plt.figure(figsize=(15, 15))
+            ax1 = fig.add_subplot(2, 2, 1)
+            ax2 = fig.add_subplot(2, 2, 2)
+            
+            fig.suptitle('{}, size {}x{}, J={}, ev_steps={}'.format(lt, M, N, J, steps))
+            
+            im1 = ax1.imshow(den_beta_J, cmap = 'coolwarm', origin='lower', extent=ext, aspect='auto', interpolation='spline36')
+            ax1.set_title('Density')
+            fig.colorbar(im1, ax=ax1)
+            ax1.set_ylabel('T/J')
+            ax1.set_xlabel('B/J')
+            
+            im2 = ax2.imshow(btw_cen_beta_J, cmap = 'coolwarm', origin='lower', extent=ext, aspect='auto', interpolation='spline36')
+            ax2.set_title('Betweeness')
+            fig.colorbar(im2, ax=ax2)
+            ax2.set_ylabel('B/J')
+            ax2.set_xlabel('T/J')
+
+            time_elapsed = (time.perf_counter() - time_start)
+            print ("checkpoint 2 %5.1f secs" % (time_elapsed))
+            
+            plt.savefig('Immagini/fig_{}_{}'.format(c, lt))
+
+if __name__ == "__main__":
     main()
