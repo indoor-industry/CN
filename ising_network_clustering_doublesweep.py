@@ -8,10 +8,10 @@ from numba import jit
 time_start = time.perf_counter()
 
 lattice_type = 'square'            #write square, triangular or hexagonal
-M = 20
-N = 20
-J = 0.8
-steps = 20   #steps one step further than V4
+M = 10
+N = 10
+J = 0.2
+steps = 20
 sample = 10
 
 T_min = 0.1                        #min temperature to explore
@@ -138,8 +138,10 @@ def main():
 
 
             den_beta_J[i, j] = den          #store density values
-            print('{}/{}'.format(i+1, sample))
+            
             btw_cen_beta_J[i, j] = btw
+
+            print('{}/{}'.format(i+1, sample))
             #print(btw.keys())
 
     time_elapsed = (time.perf_counter() - time_start)

@@ -13,12 +13,12 @@ time_start = time.perf_counter()
 lattice_type = 'square'            #write square, triangular or hexagonal
 J = -0.2                       #spin coupling constant
 B = 0                     #external magnetic field
-M = 50                          #lattice size MxN
-N = 50
-steps = 40                      #number of evolution steps per given temperature
+M = 20                          #lattice size MxN
+N = 20
+steps = 500                      #number of evolution steps per given temperature
 max_r = 15
 
-T = np.linspace(0.1, 2, 50)
+T = np.linspace(0.1, 2, 100)
 
 #function creates lattice
 def lattice(M, N):
@@ -115,6 +115,7 @@ def main():
 
     lenghts = distances(n, spl)
 
+    cov = []
     xis = []
     for i in range(len(T)):
         #iterate steps and sweep trough beta
@@ -123,27 +124,81 @@ def main():
         def func(x, cl):
             return np.exp(-x/cl)
 
-        xi, cov = optimize.curve_fit(func, r, corr_r)
-        print(xi)
-        xis.append(xi)
+        xi, pcov = optimize.curve_fit(func, r, corr_r)
+        
+        print('{}/{}'.format(i, len(T)))
+        print(xi[0])
+
+        xis.append(xi[0])
+        cov.append(np.sqrt(pcov[0][0]))
 
         y=[]
         for i in range(max_r):
             y.append(func(r[i], xi).item())
-        #print(y)
     
-        plt.plot(r, y)
+        #plt.plot(r, y)
 
-        plt.plot(r, corr_r, label='T={:10.3f}'.format(T[i]))
+        #plt.plot(r, corr_r, label='T={:10.3f}'.format(T[i]))
 
-    plt.legend(loc='upper right')
+    #plt.legend(loc='upper right')
 
     time_elapsed = (time.perf_counter() - time_start)
     print ("checkpoint %5.1f secs" % (time_elapsed))
 
-    plt.show()
+    #plt.show()
 
-    plt.scatter(T, xis)
+    index_max=0
+    max = 0
+    for t in range(len(xis)):
+        if xis[t]>max:
+            max = xis[t]
+            index_max = t
+
+
+
+    #ord = 2
+    #err = 1/np.array(cov)
+    #coeff = np.polyfit(T[index_max-2,index_max+2], xis[index_max-2,index_max+2], ord, w=err[index_max-2,index_max+2])
+    #print(coeff)
+    
+    def exp(x, a, b):
+        return np.exp(a*(x+b))
+
+    #def poli(x, order, coefficients):
+    #    f=0
+    #    polynomial=[]
+    #    for y in range(len(x)):
+    #        for u in range(order+1):
+    #            f += coefficients[u]*(x[y]**u)
+    #        polynomial.append(f)
+    #    return polynomial
+    #
+    #fit = poli(T[index_max-2,index_max+2], ord, coeff)
+    #plt.plot(T[index_max-2,index_max+2], fit)
+
+    #decay_fit, decay_cov = optimize.curve_fit(exp, T[index_max:], xis[index_max:], p0=[-1, -1], sigma=cov[index_max:])
+    #raising_fit, raising_cov = optimize.curve_fit(exp, T[:index_max], xis[:index_max], p0=[1, 1], sigma=cov[:index_max])
+
+    #decay_exp=[]
+    #for c in range(len(xis)):
+    #    if c<index_max:
+    #        continue
+    #    else:
+    #        decay_exp.append(exp(T[c], decay_fit[0], decay_fit[1]))
+
+    #raising_exp=[]
+    #for c in range(len(xis)):
+    #    if c>=index_max:
+    #        continue
+    #    else:
+    #        raising_exp.append(exp(T[c], raising_fit[0], raising_fit[1]))
+
+    #plt.plot(T[index_max:], decay_exp, label='exp({}(T+{})'.format(decay_fit[0], decay_fit[1]))
+    #plt.plot(T[:index_max], raising_exp, label='exp({}(T+{})'.format(raising_fit[0], raising_fit[1]))
+    #plt.legend()
+
+    #plt.plot(T, xis)
+    plt.errorbar(T, xis, cov, fmt='.')
     plt.title('correlation lenght vs T')
     plt.show()
 

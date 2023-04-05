@@ -7,11 +7,12 @@ from numba import jit
 time_start = time.perf_counter()
 
 lattice_type = 'square'            #write square, triangular or hexagonal
-J = -0.2                           #spin coupling
-M = 30                             #lattice size MxN
-N = 30
-steps = 30                         #number of timesteps of evolution per given temperature
-sample = 50                        #number of samples between minimum and maximum values of B and T
+J = -1                           #spin coupling
+M = 20                             #lattice size MxN
+N = 20
+steps = 1000                         #number of timesteps of evolution per given temperature
+sample = 20                        #number of samples between minimum and maximum values of B and T
+eq_steps=100
 
 T_min = 0.1                        #min temperature to explore
 T_max = 1.5                        #max temperature to explore
@@ -46,6 +47,10 @@ def num(G):
 #function to step lattice in time
 @jit(nopython=True)
 def step(A_dense, beta, B, num):
+
+    def mean(list):
+        return sum(list)/len(list)
+
     M_beta_J = np.empty((sample, sample))
     E_beta_J = np.empty((sample, sample))
 
@@ -54,8 +59,9 @@ def step(A_dense, beta, B, num):
 
             spinlist = np.random.choice(np.asarray([-1, 1]), num)  #generate random spins for each node
 
-            k=0
-            while k <= steps:                       #evolve the system trough steps number of timesteps
+            M_time=[]
+            E_time=[]
+            for k in range(steps):                       #evolve the system trough steps number of timesteps
                 A = np.copy(A_dense)                #create a new copy of the adjacency matrix at every step otherwise it will be distorted by the rest of the function
 
                 #create adjacency matrix and change all values of adjacency (always 1) with the value of spin of the neighbour    
@@ -82,10 +88,12 @@ def step(A_dense, beta, B, num):
                             continue
                         elif np.exp(-dE[l]*beta[j]) > np.random.rand():    #thermal noise
                             spinlist[l] *= -1   
-                k+=1
 
-            M_beta_J[i, j] = M          #store magnetisation values
-            E_beta_J[i, j] = E          #store energy values
+                E_time.append(E)
+                M_time.append(M)
+
+            M_beta_J[i, j] = mean(M_time[eq_steps:])          #store magnetisation values
+            E_beta_J[i, j] = mean(E_time[eq_steps:])          #store energy values
 
         print(i)
 

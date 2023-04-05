@@ -7,12 +7,14 @@ import numba as nb
 
 time_start = time.perf_counter()
 
+k_b = 8.617333262e-5
 lattice_type = 'square'            #write square, triangular or hexagonal
 J = -0.2                       #spin coupling constant
 B = 0                       #external magnetic field
-M = 30                          #lattice size MxN
-N = 30
-steps = 50                      #number of evolution steps per given temperature
+M = 20                          #lattice size MxN
+N = 20
+steps = 2000                      #number of evolution steps per given temperature
+steps_to_eq = 100
 
 T = np.linspace(0.1, 2, 50)   #temperature range as of README
 
@@ -39,7 +41,7 @@ def num(G):
 @jit(nopython=True)
 def step(A_dense, beta, num):
 
-    rand_spins = np.random.choice(np.asarray([-1, 1]), num)   #create random spins for nodes
+    #rand_spins = np.random.choice(np.asarray([-1, 1]), num)   #create random spins for nodes
     
     cv_beta = nb.typed.List.empty_list(nb.f8)
     xi_beta = nb.typed.List.empty_list(nb.f8)
@@ -48,7 +50,8 @@ def step(A_dense, beta, num):
 
     for j in range(len(beta)):                      #raster trough temperatures
 
-        spinlist = np.copy(rand_spins)
+        #spinlist = np.copy(rand_spins)
+        spinlist = np.random.choice(np.asarray([-1, 1]), num)   #create random spins for nodes
 
         l=0
         E_time = nb.typed.List.empty_list(nb.f8)
@@ -82,7 +85,7 @@ def step(A_dense, beta, num):
                         spinlist[i] *= -1
 
             E_time.append(E)            #list of energy trough time
-            M_time.append(abs(M))            #list of magnetisation trough time
+            M_time.append(M)            #list of magnetisation trough time
             l+=1
         #print(spinlist)
         def variance(data):             #variance function needed for specific heat and magnetic susceptibility
@@ -99,10 +102,10 @@ def step(A_dense, beta, num):
         def mean(list):
             return sum(list)/len(list)
 
-        var_E = variance(E_time[steps//2:])     #variance of energy (start acquiring half trough evolution to let system reach equilibrium)
-        var_M = variance(M_time[steps//2:])     #same as above for magnetisation
-        mean_E = mean(E_time[steps//2:])
-        mean_M = mean(M_time[steps//2:])
+        var_E = variance(E_time[steps_to_eq:])     #variance of energy (start acquiring half trough evolution to let system reach equilibrium)
+        var_M = variance(M_time[steps_to_eq:])     #same as above for magnetisation
+        mean_E = mean(E_time[steps_to_eq:])
+        mean_M = mean(M_time[steps_to_eq:])
 
         cv_beta.append(var_E*beta[j]**2)    #used to plot specific heat against temperature
         xi_beta.append(var_M*beta[j])       #used to plot magnetic susceptibility against temperature
@@ -142,7 +145,7 @@ def main():
     ax1.scatter(T, E_beta/n_normalize, color = 'orange')
     ax1.set_ylabel('$<E(T)>$')
     ax2.scatter(T, M_beta/n_normalize, color = 'blue')
-    ax2.set_ylabel('$<|M(T)|>$')
+    ax2.set_ylabel('$<M(T)>$')
     ax3.scatter(T, cv_beta/n_normalize, color = 'green')
     ax3.set_ylabel('$C_v(T)$')
     ax4.scatter(T, xi_beta/n_normalize, color = 'black')

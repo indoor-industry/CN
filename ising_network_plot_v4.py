@@ -6,12 +6,12 @@ import time
 time_start = time.perf_counter()
 
 lattice_type = 'square'            #write square, triangular or hexagonal
-M = 30
-N = 30                      #MxN size of lattice
+M = 20
+N = 20                      #MxN size of lattice
 J = -0.2                    #spin-spin coupling strenght
 B = 0
-T = 1                  #external field (actually is mu*B where mu is magnetic moment of atoms)
-steps = 10                 #evolution timesteps
+T = 3                  #external field (actually is mu*B where mu is magnetic moment of atoms)
+steps = 20                 #evolution timesteps
 
 #creates lattice
 def lattice(M, N):
