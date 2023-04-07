@@ -8,38 +8,48 @@ from numba import jit
 time_start = time.perf_counter()
 
 lattice_type = 'square'            #write square, triangular or hexagonal
-M = 10
-N = 10
-J = 0.2
-steps = 20
-sample = 10
+M = 20
+N = 20
+J = -0.5
+B = 0
+steps = 1000
 
-T_min = 0.1                        #min temperature to explore
-T_max = 1                    #max temperature to explore
+Tc = (2*abs(J))/np.log(1+np.sqrt(2))         #Onsager critical temperature for square lattice
+print(Tc)
 
-B_min = 0.1#-1                         #min magnetic field to explore
-B_max = 1#1                          #max magnetic field to explore
-
-T = np.linspace(T_min, T_max, sample)   #temperature range to explore
-
-ones = np.ones(len(T))                  #convert to inverse temperature
+T = np.linspace(0.1, 2, 50)
+ones = np.ones(len(T))
 beta = ones/T
-
-B = np.linspace(B_min, B_max, sample)   #External magnetic field range to explore
 
 #creates lattice
 def lattice(M, N):
     if lattice_type == 'hexagonal':
         lattice = nx.hexagonal_lattice_graph(M, N, periodic=True, with_positions=True, create_using=None)
         lattice = nx.convert_node_labels_to_integers(lattice, first_label=0, ordering='default', label_attribute=None)
+        pos = nx.get_node_attributes(lattice, 'pos') #use for any shape other than square
     elif lattice_type == 'triangular':
         lattice = nx.triangular_lattice_graph(M, N, periodic=True, with_positions=True, create_using=None)
         lattice = nx.convert_node_labels_to_integers(lattice, first_label=0, ordering='default', label_attribute=None)
+        pos = nx.get_node_attributes(lattice, 'pos') #use for any shape other than square
     elif lattice_type == 'square':
         lattice = nx.grid_2d_graph(M, N, periodic=True, create_using=None)
         lattice = nx.convert_node_labels_to_integers(lattice, first_label=0, ordering='default', label_attribute=None)
+        pos = generate_grid_pos(lattice, M, N) #use for 2D grid network
 
-    return lattice
+    return lattice, pos
+
+def generate_grid_pos(G, M, N):
+    p = []
+    for m in range(M):
+        for n in range(N):
+            p.append((n, m))
+    
+    grid_pos = {}
+    k = 0
+    for node in G:
+        grid_pos[node]=p[k]
+        k+=1
+    return grid_pos
 
 #function that counts numer of nodes
 def num(G):
@@ -55,9 +65,20 @@ def spinass(G, spinlist):
         G.nodes[node]['spin']=spinlist[k]
         k+=1
 
+#create color map
+def colormap(G):
+    color=[]
+    for node in G:
+        if G.nodes[node]['spin']==1:
+            color.append('red')
+        else:
+            color.append('black')
+    return color
+
 #function for single step
 @jit(nopython=True)
-def step(A_dense, spinlist, beta, magfield):
+def step(A_dense, spinlist, beta, num):
+
     l=0
     while l <= steps:
     
@@ -72,15 +93,19 @@ def step(A_dense, spinlist, beta, magfield):
         nnsum = np.sum(A,axis=1)
     
         #What decides the flip is
-        dE=-4*J*np.multiply(nnsum, spinlist) + 2*magfield*spinlist
-    
+        dE=-4*J*np.multiply(nnsum, spinlist) + 2*B*spinlist
+        E = J*sum(np.multiply(nnsum, spinlist)) - B*sum(spinlist)   #total energy
+
         #Now flip every spin whose dE<0
         for offset in range(2):
             for i in range(offset,len(dE),2):
                 if dE[i]<0:
                     spinlist[i] *= -1
                 elif dE[i]==0:
-                    continue
+                    if np.exp(-(E/num)*beta) > np.random.rand():
+                        spinlist[i] *= -1
+                    else:
+                        continue
                 elif np.exp(-dE[i]*beta) > np.random.rand():
                     spinlist[i] *= -1
 
@@ -92,7 +117,6 @@ def step(A_dense, spinlist, beta, magfield):
                     A[m,n]=spinlist[n] #assigned to every element in the adj matrix the corresponding node spin value
 
         l += 1
-        #print(l)
 
     return A, spinlist
 
@@ -106,83 +130,73 @@ def clustering(A, s):
     return A
 
 def main():
-    G = lattice(M, N)
+
+    def mean(list):
+        return sum(list)/len(list)
+
+    G, pos = lattice(M, N)
 
     n = num(G)
 
-    spinlist = np.random.choice(np.asarray([-1, 1]), n)  #generate random spins for each node
+    rand_spin = np.random.choice(np.asarray([-1, 1]), n)  #generate random spins for each node
     
-    spinass(G, spinlist)
+    spinass(G, rand_spin)
 
     Adj = nx.adjacency_matrix(G, nodelist=None, dtype=None, weight='weight')
     A_dense = Adj.todense()
 
+    diameter_of_giant_component_T = []
+    density_T = []
+    btw_T = []
+    cc_T = []
+    for i in range(len(T)):
 
-    den_beta_J = np.empty((sample, sample))
-    btw_cen_beta_J = np.empty((sample, sample))
+        spinlist = np.copy(rand_spin)
 
-    for i in range(len(B)):
-        for j in range(len(beta)):              #run through different combinations of B and T
-            #iterate some steps
-            A, s = step(A_dense, spinlist, 1/T[j], B[i])
+        #iterate some steps
+        A, s = step(A_dense, spinlist, beta[i], n)
+        A_clust = clustering(A, s)
+        G2 = nx.from_scipy_sparse_array(sparse.csr_matrix(A_clust)) #G2 only hasa the relevant edges
+        
+        ne = nx.number_of_edges(G2)
+        density = nx.density(G2)
+        cc = nx.number_connected_components(G2)
+        
+        #calculate the average betweennes centrality of nodes
+        full_btw = nx.betweenness_centrality(G2)
+        mean_btw = mean(full_btw.values())
 
-            spinass(G, spinlist)
+        Gcc = sorted(nx.connected_components(G2), key=len, reverse=True)
+        giant = G.subgraph(Gcc[0])
+        diameter_of_giant_component_T.append(nx.diameter(giant))
 
-            A_clust = clustering(A, s)
+        density_T.append(density)
+        btw_T.append(mean_btw)
+        cc_T.append(cc)
 
-            G2 = nx.from_scipy_sparse_array(sparse.csr_matrix(A_clust)) #G2 only hasa the relevant edges
+        print(i)
 
-            den = nx.density(G2)
-            btw = nx.betweenness_centrality(G2).get(7)
-            #print(type(btw))
-
-
-            den_beta_J[i, j] = den          #store density values
-            
-            btw_cen_beta_J[i, j] = btw
-
-            print('{}/{}'.format(i+1, sample))
-            #print(btw.keys())
-
-    time_elapsed = (time.perf_counter() - time_start)
-    print ("checkpoint 1 %5.1f secs" % (time_elapsed))
-
-    y_max = T_max / J
-    y_min = T_min / J
-    x_max = B_max / J 
-    x_min = B_min / J
-
-    ext = [x_min, x_max, y_min, y_max]
-    #plt.imshow(den_beta_J, cmap = 'coolwarm', origin='lower', extent=ext, aspect='auto', interpolation='spline36')
-    #plt.colorbar()
-
-    #plt.show()
-
-    #plt.imshow(btw_cen_beta_J, cmap = 'coolwarm', origin='lower', extent=ext, aspect='auto', interpolation='spline36')
-    #plt.colorbar()
-
-    fig = plt.figure(figsize=(15, 15))
+    fig = plt.figure()
     ax1 = fig.add_subplot(2, 2, 1)
     ax2 = fig.add_subplot(2, 2, 2)
+    ax3 = fig.add_subplot(2, 2, 3)
+    ax4 = fig.add_subplot(2, 2, 4)
+    ax1.scatter(T/Tc, diameter_of_giant_component_T, color = 'orange')
+    ax1.set_ylabel('diam. of giant component(T/Tc)')
+    ax2.scatter(T/Tc, density_T, color = 'blue')
+    ax2.set_ylabel('density(T/Tc)')
+    ax3.scatter(T/Tc, btw_T, color = 'green')
+    ax3.set_ylabel('|betweenness centrality|(T/Tc)')
+    ax4.scatter(T/Tc, cc_T, color = 'black')
+    ax4.set_ylabel('connected components(T/Tc)')
+    fig.suptitle('{} {}x{}  B={} J={}, ev_steps={}'.format(lattice_type, M, N, B, J, steps))
+    fig.tight_layout()
     
-    fig.suptitle('{}, size {}x{}, J={}, ev_steps={}'.format(lattice_type, M, N, J, steps))
-    
-    im1 = ax1.imshow(den_beta_J, cmap = 'coolwarm', origin='lower', extent=ext, aspect='auto', interpolation='spline36')
-    ax1.set_title('Density')
-    fig.colorbar(im1, ax=ax1)
-    ax1.set_ylabel('T/J')
-    ax1.set_xlabel('B/J')
-    
-    im2 = ax2.imshow(btw_cen_beta_J, cmap = 'coolwarm', origin='lower', extent=ext, aspect='auto', interpolation='spline36')
-    ax2.set_title('Betweeness')
-    fig.colorbar(im2, ax=ax2)
-    ax2.set_ylabel('B/J')
-    ax2.set_xlabel('T/J')
-
     time_elapsed = (time.perf_counter() - time_start)
     print ("checkpoint 2 %5.1f secs" % (time_elapsed))
     
     plt.show()
+
 
 if __name__ == "__main__":
     main()

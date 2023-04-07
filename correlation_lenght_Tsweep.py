@@ -1,5 +1,3 @@
-#ONLY FOR PERIODIC LATTICES
-
 import networkx as nx
 import matplotlib.pyplot as plt
 import numpy as np
@@ -11,14 +9,16 @@ from scipy import optimize
 time_start = time.perf_counter()
 
 lattice_type = 'square'            #write square, triangular or hexagonal
-J = -0.2                       #spin coupling constant
+J = -0.5                       #spin coupling constant
 B = 0                     #external magnetic field
 M = 20                          #lattice size MxN
 N = 20
 steps = 500                      #number of evolution steps per given temperature
 max_r = 15
 
-T = np.linspace(0.1, 2, 100)
+Tc = (2*abs(J))/np.log(1+np.sqrt(2))         #Onsager critical temperature for square lattice
+
+T = np.linspace(0.1, 2, 50)
 
 #function creates lattice
 def lattice(M, N):
@@ -67,6 +67,7 @@ def step(A_dense, beta, num, nn_number, lenghts):
 
         #What decides the flip is
         dE = -4*J*np.multiply(nnsum, spinlist) + 2*B*spinlist    #change in energy
+        E = J*sum(np.multiply(nnsum, spinlist)) - B*sum(spinlist)   #total energy
 
         #change spins if energetically favourable or according to thermal noise
         for offset in range(2):                 #offset to avoid interfering with neighboring spins while rastering
@@ -74,7 +75,10 @@ def step(A_dense, beta, num, nn_number, lenghts):
                 if dE[i]<0:
                     spinlist[i] *= -1
                 elif dE[i]==0:
-                    continue
+                    if np.exp(-(E/num)*beta) > np.random.rand():
+                        spinlist[i] *= -1
+                    else:
+                        continue
                 elif np.exp(-dE[i]*beta) > np.random.rand():     #thermal noise
                     spinlist[i] *= -1
         l+=1
@@ -135,17 +139,9 @@ def main():
         y=[]
         for i in range(max_r):
             y.append(func(r[i], xi).item())
-    
-        #plt.plot(r, y)
-
-        #plt.plot(r, corr_r, label='T={:10.3f}'.format(T[i]))
-
-    #plt.legend(loc='upper right')
 
     time_elapsed = (time.perf_counter() - time_start)
     print ("checkpoint %5.1f secs" % (time_elapsed))
-
-    #plt.show()
 
     index_max=0
     max = 0
@@ -153,53 +149,34 @@ def main():
         if xis[t]>max:
             max = xis[t]
             index_max = t
-
-
-
-    #ord = 2
-    #err = 1/np.array(cov)
-    #coeff = np.polyfit(T[index_max-2,index_max+2], xis[index_max-2,index_max+2], ord, w=err[index_max-2,index_max+2])
-    #print(coeff)
     
     def exp(x, a, b):
         return np.exp(a*(x+b))
 
-    #def poli(x, order, coefficients):
-    #    f=0
-    #    polynomial=[]
-    #    for y in range(len(x)):
-    #        for u in range(order+1):
-    #            f += coefficients[u]*(x[y]**u)
-    #        polynomial.append(f)
-    #    return polynomial
-    #
-    #fit = poli(T[index_max-2,index_max+2], ord, coeff)
-    #plt.plot(T[index_max-2,index_max+2], fit)
+    decay_fit, decay_cov = optimize.curve_fit(exp, T[index_max:], xis[index_max:], p0=[-1, -1], sigma=cov[index_max:])
+    raising_fit, raising_cov = optimize.curve_fit(exp, T[:index_max], xis[:index_max], p0=[1, 1], sigma=cov[:index_max])
 
-    #decay_fit, decay_cov = optimize.curve_fit(exp, T[index_max:], xis[index_max:], p0=[-1, -1], sigma=cov[index_max:])
-    #raising_fit, raising_cov = optimize.curve_fit(exp, T[:index_max], xis[:index_max], p0=[1, 1], sigma=cov[:index_max])
+    decay_exp=[]
+    for c in range(len(xis)):
+        if c<index_max:
+            continue
+        else:
+            decay_exp.append(exp(T[c], decay_fit[0], decay_fit[1]))
 
-    #decay_exp=[]
-    #for c in range(len(xis)):
-    #    if c<index_max:
-    #        continue
-    #    else:
-    #        decay_exp.append(exp(T[c], decay_fit[0], decay_fit[1]))
+    raising_exp=[]
+    for c in range(len(xis)):
+        if c>=index_max:
+            continue
+        else:
+            raising_exp.append(exp(T[c], raising_fit[0], raising_fit[1]))
 
-    #raising_exp=[]
-    #for c in range(len(xis)):
-    #    if c>=index_max:
-    #        continue
-    #    else:
-    #        raising_exp.append(exp(T[c], raising_fit[0], raising_fit[1]))
+    plt.plot(T[index_max:], decay_exp, label='exp({}(T+{})'.format(decay_fit[0], decay_fit[1]))
+    plt.plot(T[:index_max], raising_exp, label='exp({}(T+{})'.format(raising_fit[0], raising_fit[1]))
+    plt.legend()
 
-    #plt.plot(T[index_max:], decay_exp, label='exp({}(T+{})'.format(decay_fit[0], decay_fit[1]))
-    #plt.plot(T[:index_max], raising_exp, label='exp({}(T+{})'.format(raising_fit[0], raising_fit[1]))
-    #plt.legend()
-
-    #plt.plot(T, xis)
-    plt.errorbar(T, xis, cov, fmt='.')
-    plt.title('correlation lenght vs T')
+    plt.plot(T/Tc, xis)
+    plt.errorbar(T/Tc, xis, cov, fmt='.')
+    plt.title('correlation lenght vs T/Tc')
     plt.show()
 
 if __name__ =="__main__":

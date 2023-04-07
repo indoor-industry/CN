@@ -11,12 +11,15 @@ time_start = time.perf_counter()
 
 k_b = 8.617333262e-5
 lattice_type = 'square'            #write square, triangular or hexagonal
-J = -0.2                        #spin coupling constant
+J = -0.5                        #spin coupling constant
 B = 0                     #external magnetic field
 M = 10                          #lattice size MxN
 N = 10
-steps = 100                      #number of evolution steps per given temperature
+steps = 1000                      #number of evolution steps per given temperature
 T = 10
+
+Tc = (2*abs(J))/np.log(1+np.sqrt(2))         #Onsager critical temperature for square lattice
+print(Tc)
 
 #function creates lattice
 def lattice(M, N):
@@ -68,9 +71,8 @@ def step(A_dense, beta, num):
         nnsum = np.sum(A,axis=1)
 
         #What decides the flip is
-        dE = -4*J*np.multiply(nnsum, spinlist) + 2*B*spinlist    #change in energy
-           
-        #E = J*sum(np.multiply(nnsum, spinlist)) - B*sum(spinlist)   #total energy    
+        dE = -4*J*np.multiply(nnsum, spinlist) + 2*B*spinlist    #change in energy   
+        E = J*sum(np.multiply(nnsum, spinlist)) - B*sum(spinlist)   #total energy    
     
         #change spins if energetically favourable or according to thermal noise
         for offset in range(2):                 #offset to avoid interfering with neighboring spins while rastering
@@ -78,7 +80,10 @@ def step(A_dense, beta, num):
                 if dE[i]<0:
                     spinlist[i] *= -1
                 elif dE[i]==0:
-                    continue
+                    if np.exp(-(E/num)*beta) > np.random.rand():
+                        spinlist[i] *= -1
+                    else:
+                        continue
                 elif np.exp(-dE[i]*beta) > np.random.rand():     #thermal noise
                     spinlist[i] *= -1
         
@@ -118,6 +123,7 @@ def main():
     corr_matrix, spins, density = step(A_dense, 1/T, n)
 
     print(density)
+    print(corr_matrix)
 
     G_corr = nx.create_empty_copy(G, with_data=True)
 
@@ -132,7 +138,7 @@ def main():
     nx.draw_networkx(G_corr, node_size=10, node_color=color, with_labels=False, edge_cmap=mpl.colormaps['seismic'], edge_vmin=-1, edge_vmax=1, edge_color=list(w.values()), width=np.exp(abs(np.array(list(w.values())))))
     
     time_elapsed = (time.perf_counter() - time_start)
-    print ("checkpoint %5.1f secs" % (time_elapsed))
+    print("checkpoint %5.1f secs" % (time_elapsed))
     
     plt.show()
 

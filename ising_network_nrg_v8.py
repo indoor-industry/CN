@@ -14,10 +14,13 @@ B = 0                       #external magnetic field
 M = 20                          #lattice size MxN
 N = 20
 steps = 1000                      #number of evolution steps per given temperature
-steps_to_eq = 100                   #steps unitl equilibrium is reached
+steps_to_eq = 100                   #steps until equilibrium is reached
 repeat = 1                     #number of trials per temperature to average over
 
-T = np.linspace(0.1, 1.5, 50)   #temperature range
+Tc = (2*abs(J))/np.log(1+np.sqrt(2))         #Onsager critical temperature for square lattice
+print(Tc)
+
+T = np.linspace(0.1, 5, 50)   #temperature range
 
 ones = np.ones(len(T))
 beta = ones/(T)
@@ -41,6 +44,12 @@ def num(G):
 
 @jit(nopython=True)
 def step(A_dense, beta, num):
+
+    def mean_square(data):
+        sum_of_squares=0
+        for element in range(len(data)):
+            sum_of_squares += data[element]**2
+        return np.sqrt(sum_of_squares/len(data))
 
     def variance(data):             #variance function needed for specific heat and magnetic susceptibility
         # Number of observations
@@ -104,7 +113,6 @@ def step(A_dense, beta, num):
                             else:
                                 continue
                         elif np.exp(-dE[i]*beta[j]) > np.random.rand():     #thermal noise
-                            #print(np.exp(-dE[i]*beta[j]))
                             spinlist[i] *= -1
 
                 E_time.append(E)            #list of energy trough time
@@ -114,7 +122,7 @@ def step(A_dense, beta, num):
             var_E = variance(E_time[steps_to_eq:])     #variance of energy (start aquiring after equilibrium is reached)
             var_M = variance(M_time[steps_to_eq:])     #same as above for magnetisation
             mean_E = mean(E_time[steps_to_eq:])
-            mean_M = mean(M_time[steps_to_eq:])
+            mean_M = mean_square(M_time[steps_to_eq:])
 
             rep_mean_E.append(mean_E)                   #done 'repeat' number of times
             rep_mean_M.append(mean_M)
@@ -129,7 +137,7 @@ def step(A_dense, beta, num):
         cv_beta.append(avg_var_E*beta[j]**2)    #used to plot specific heat against temperature
         xi_beta.append(avg_var_M*beta[j])       #used to plot magnetic susceptibility against temperature
         E_beta.append(avg_mean_E)               #used to plot energy against temperature
-        M_beta.append(avg_mean_M)               #used to plot magnetisation against temperature
+        M_beta.append(abs(avg_mean_M))               #used to plot magnetisation against temperature
 
         print(j)
 
@@ -160,19 +168,19 @@ def main():
     ax2 = fig.add_subplot(2, 2, 2)
     ax3 = fig.add_subplot(2, 2, 3)
     ax4 = fig.add_subplot(2, 2, 4)
-    ax1.scatter(T, E_beta/n_normalize, color = 'orange')
-    ax1.set_ylabel('$<E>$')
-    ax1.set_xlabel('T')
-    ax2.scatter(T, M_beta/n_normalize, color = 'blue')
-    ax2.set_ylabel('$<M>$')
-    ax2.set_xlabel('T')
-    ax3.scatter(T, cv_beta/n_normalize, color = 'green')
+    ax1.scatter(T/Tc, E_beta/(n_normalize*abs(J)), color = 'orange')
+    ax1.set_ylabel('$<E>/J$')
+    ax1.set_xlabel('T/Tc')
+    ax2.scatter(T/Tc, M_beta/n_normalize, color = 'blue')
+    ax2.set_ylabel('$<\sqrt{|M^2|}>$')
+    ax2.set_xlabel('T/Tc')
+    ax3.scatter(T/Tc, cv_beta/n_normalize, color = 'green')
     ax3.set_ylabel('$C_v$')
-    ax3.set_xlabel('T')
-    ax4.scatter(T, xi_beta/n_normalize, color = 'black')
+    ax3.set_xlabel('T/Tc')
+    ax4.scatter(T/Tc, xi_beta/n_normalize, color = 'black')
     ax4.set_ylabel('$\Xi$')
-    ax4.set_xlabel('T')
-    fig.suptitle('{} {}x{}  B={} J={}, ev_steps={}'.format(lattice_type, M, N, B, J, steps))
+    ax4.set_xlabel('T/Tc')
+    fig.suptitle('{} no.atoms={}  B={} J={}, ev_steps={}, samples/T={}'.format(lattice_type, n, B, J, steps, repeat))
     fig.tight_layout()
     plt.show()
 

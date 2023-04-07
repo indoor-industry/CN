@@ -8,12 +8,14 @@ import numba as nb
 time_start = time.perf_counter()
 
 lattice_type = 'square'            #write square, triangular or hexagonal
-J = -0.2                       #spin coupling constant
+J = -0.5                       #spin coupling constant
 B = 0                       #external magnetic field
-M = 30                          #lattice size MxN
-N = 30
-steps = 4000                      #number of evolution steps per given temperature
-T = 0.1   #temperature range as of README
+M = 20                          #lattice size MxN
+N = 20
+steps = 10000                      #number of evolution steps per given temperature
+
+Tc = (2*abs(J))/np.log(1+np.sqrt(2))         #Onsager critical temperature for square lattice
+T = 0.5*Tc                             #temperature 
 
 #function creates lattice
 def lattice(M, N):
@@ -61,6 +63,9 @@ def step(A_dense, beta, num):
         choice = np.random.randint(len(spinlist))
         if dE[choice]<0:
             spinlist[choice]*=-1
+        elif dE[choice]==0:
+            if np.exp(-(E/num)*beta) > np.random.rand():
+                spinlist[choice] *= 1
         elif np.exp(-dE[choice]*beta) > np.random.rand():     #thermal noise
             spinlist[choice] *= -1
 
@@ -108,11 +113,11 @@ def main():
     fig = plt.figure()
     ax1 = fig.add_subplot(2, 1, 1)
     ax2 = fig.add_subplot(2, 1, 2)
-    ax1.scatter(t, E_time, color = 'orange')
+    ax1.plot(t, E_time, color = 'orange')
     ax1.set_ylabel('$E(time)$')
-    ax2.scatter(t, M_time, color = 'blue')
+    ax2.plot(t, M_time, color = 'blue')
     ax2.set_ylabel('$M(time)$')
-    fig.suptitle('{} {}x{}  B={} J={}, ev_steps={}'.format(lattice_type, M, N, B, J, steps))
+    fig.suptitle('{} {}x{} T/Tc={} B={} J={}, ev_steps={}'.format(lattice_type, M, N, T/Tc, B, J, steps))
     fig.tight_layout()
     plt.show()
 

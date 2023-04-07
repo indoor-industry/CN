@@ -1,15 +1,21 @@
+#Credits to Mr. P Solver for the inspiration
+
 import matplotlib.pyplot as plt
 import numpy as np
 from numba import jit
+
+function = 'animation'          #select 'animation' or 'energy plot'
 
 #specify size of lattice
 M=500
 N=500
 
 #temperature
-J = -0.2
-B = -0.01
-beta = 10
+J = -0.5
+B = 0
+T = 10
+beta = 1/T
+steps = 100
 
 #create lattice with random values of 1 and -1
 
@@ -22,7 +28,7 @@ def lattice(N, M):
 #account for thermal fluctuations
 
 @jit
-def update(field, n, m, beta):
+def update(field, n, m, beta, E):
     nnsum = 0
     N, M = field.shape
     for i in range(n-1, n+2):
@@ -32,8 +38,11 @@ def update(field, n, m, beta):
             nnsum += field[i % N, j % M] #sum over nearest neighbours
     dE = -4*field[n, m] * nnsum * J + 2*B*field[n, m]  #change in energy
     E = J*field[n, m]*nnsum - B*field[n, m]    #energy of single site
-    if dE <= 0:
+    if dE < 0:
         field[n, m] *= -1
+    elif dE==0:
+        if np.exp(-(E/(M*N))*beta) > np.random.rand():
+            field[n, m] *= -1
     elif np.exp(-dE*beta) > np.random.rand():
         field[n, m] *= -1
     return E
@@ -49,38 +58,37 @@ def step(field, beta):
         for m_offset in range(2):
             for n in range(n_offset, N, 2):
                 for m in range(m_offset, M, 2):
-                    update(field, n, m, beta)
-                    E+=update(field, n, m, beta)
+                    update(field, n, m, beta, E)
+                    E+=update(field, n, m, beta, E)
     return field, E
 
 #define a lattice and print timesteps of evolution
 L = lattice(M, N)
 
-t = 0
-#animation
-im = plt.imshow(L, cmap='gray', vmin=-1, vmax=1, interpolation='none')
-while t<50:
-    im.set_data(L)
-    plt.draw()
-    L, E = step(L, beta)
-    plt.pause(.001)
-    t += 1
+if function == 'animation':
+    t = 0
+    #animation
+    im = plt.imshow(L, cmap='gray', vmin=-1, vmax=1, interpolation='none')
+    while t<steps:
+        im.set_data(L)
+        plt.draw()
+        L, E = step(L, beta)
+        plt.pause(.001)
+        t += 1
 
-
-#energy plot
-
-#steps = 50
-#N_array = M*N*np.ones(steps)
-#nrg = []
-#time = []
-#while t < steps:
-#    L, E = step(L, beta)
-#    nrg.append(E)
-#    time.append(t)
-#    t += 1
-#A = plt.plot(time, nrg/N_array)
-#plt.show()
-
-#OK provo a definire alcune caratteristiche del network prima qua
+elif function == 'energy plot':
+    t = 0
+    #energy plot
+    steps = 50
+    N_array = M*N*np.ones(steps)
+    nrg = []
+    time = []
+    while t < steps:
+        L, E = step(L, beta)
+        nrg.append(E)
+        time.append(t)
+        t += 1
+    A = plt.plot(time, nrg/N_array)
+    plt.show()
 
 

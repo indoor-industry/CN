@@ -1,34 +1,36 @@
-#ONLY FOR PERIODIC LATTICES
-
 import networkx as nx
 import matplotlib.pyplot as plt
 import matplotlib as mpl
 import numpy as np
 import time
 from numba import jit
-from scipy import optimize
 
 time_start = time.perf_counter()
 
 k_b = 8.617333262e-5
-lattice_type = 'square'            #write square, triangular or hexagonal
-J = -1                            #spin coupling constant
-sample = 10         
+lattice_type = 'square'             #write square, triangular or hexagonal
+J = -0.5                            #spin coupling constant
+
+T_sample = 20
+B_sample = 15
 
 B_min = 0
-B_max = 1
-B = np.linspace(B_min, B_max, sample)                     #external magnetic field
+B_max = 0.5
+B = np.linspace(B_min, B_max, B_sample)                     #external magnetic field
 
-M = 20                          #lattice size MxN
+M = 20                              #lattice size MxN
 N = 20
-steps = 100                      #number of evolution steps per given temperature
+steps = 1000                        #number of evolution steps per given temperature
 
-T_min = 0.2
+T_min = 0.1
 T_max = 2
-T = np.linspace(T_min, T_max, sample)
+T = np.linspace(T_min, T_max, T_sample)
 
 ones = np.ones(len(T))
 beta = ones/T
+
+Tc = (2*abs(J))/np.log(1+np.sqrt(2))         #Onsager critical temperature for square lattice
+print(Tc)
 
 #function creates lattice
 def lattice(M, N):
@@ -41,7 +43,6 @@ def lattice(M, N):
     elif lattice_type == 'square':
         lattice = nx.grid_2d_graph(M, N, periodic=True, create_using=None)
         return lattice, 4
-    #return lattice
 
 #count number of sites in lattice
 def num(G):
@@ -63,38 +64,41 @@ def colormap(spinlist, num):
 @jit(nopython=True)
 def step(A_dense, beta, num, B):
 
-    den_beta_B = np.empty((sample, sample))
+    den_beta_B = np.empty((B_sample, T_sample))
     for r in range(len(B)):
         for p in range(len(beta)):
 
             corr_matrix = np.zeros((num, num))
     
-            spinlist = np.random.choice(np.array([1, -1]), num)   #create random spins for nodes
+            spinlist = np.random.choice(np.array([1, -1]), num) #create random spins for nodes
     
-            for l in range(steps):                               #evolve trough steps number of timesteps
+            for l in range(steps):                              #evolve trough steps number of timesteps
 
-                A = np.copy(A_dense)                        #take new copy of adj. matrix at each step because it gets changed trough the function
+                A = np.copy(A_dense)                            #take new copy of adj. matrix at each step because it gets changed trough the function
 
-                for m in range(A.shape[1]):  #A.shape[1] gives number of nodes
+                for m in range(A.shape[1]):                     #A.shape[1] gives number of nodes
                     for n in range(A.shape[1]):
                         if A[m,n]==1:
-                            A[m,n]=spinlist[n] #assigned to every element in the adj matrix the corresponding node spin value
+                            A[m,n]=spinlist[n]                  #assigned to every element in the adj matrix the corresponding node spin value
          
                 #sum over rows to get total spin of neighbouring atoms for each atom
                 nnsum = np.sum(A,axis=1)
 
                 #What decides the flip is
-                dE = -4*J*np.multiply(nnsum, spinlist) + 2*B[r]*spinlist    #change in energy     
-                E = J*sum(np.multiply(nnsum, spinlist)) - B*sum(spinlist)   #total energy    
+                dE = -4*J*np.multiply(nnsum, spinlist) + 2*B[r]*spinlist        #change in energy     
+                E = J*sum(np.multiply(nnsum, spinlist)) - B[r]*sum(spinlist)    #total energy    
 
                 #change spins if energetically favourable or according to thermal noise
-                for offset in range(2):                 #offset to avoid interfering with neighboring spins while rastering
+                for offset in range(2):                         #offset to avoid interfering with neighboring spins while rastering
                     for i in range(offset,len(dE),2):
                         if dE[i]<0:
                             spinlist[i] *= -1
                         elif dE[i]==0:
-                            continue
-                        elif np.exp(-dE[i]*beta[p]) > np.random.rand():     #thermal noise
+                            if np.exp(-(E/num)*beta[p]) > np.random.rand():
+                                spinlist[i] *= -1
+                            else:
+                                continue
+                        elif np.exp(-dE[i]*beta[p]) > np.random.rand():         #thermal noise
                             spinlist[i] *= -1
 
 
@@ -115,6 +119,8 @@ def step(A_dense, beta, num, B):
             density = sum(di)/num
             
             den_beta_B[r, p] = density
+        
+        print(r)
 
     return norm_corr_matrix, spinlist, den_beta_B
 
@@ -134,7 +140,7 @@ def main():
     #iterate steps and sweep trough beta
     corr_matrix, spins, den_matrix = step(A_dense, beta, n, B)
 
-    ext = [T_min, T_max, B_min, B_max]
+    ext = [T_min/Tc, T_max/Tc, B_min, B_max]
     
     fig = plt.figure(figsize=(15, 15))
     ax1 = fig.add_subplot(1, 1, 1)
@@ -146,7 +152,7 @@ def main():
     ax1.set_title('density')
     fig.colorbar(im1, ax=ax1)
     ax1.set_ylabel('B')
-    ax1.set_xlabel('T')
+    ax1.set_xlabel('T/Tc')
     
     #im2 = ax2.imshow(E_beta_J/n, cmap = 'Reds', origin='lower', extent=ext, aspect='auto', interpolation='spline36')
     #ax2.set_title('E/site')
@@ -158,19 +164,6 @@ def main():
     print ("checkpoint %5.1f secs" % (time_elapsed))
 
     plt.show()
-
-    #G_corr = nx.create_empty_copy(G, with_data=True)
-
-    #for i in range(n):
-    #    for j in range(n):
-    #        if j<i:
-    #            G_corr.add_edge(i, j, weight=corr_matrix[i][j])
-
-    #w = nx.get_edge_attributes(G_corr, 'weight')
-
-    #color = colormap(spins, n)
-    #nx.draw_networkx(G_corr, node_size=10, node_color=color, with_labels=False, edge_cmap=mpl.colormaps['seismic'], edge_vmin=-1, edge_vmax=1, edge_color=list(w.values()), width=np.exp(abs(np.array(list(w.values())))))
-    #plt.show()
 
 if __name__ =="__main__":
     main()

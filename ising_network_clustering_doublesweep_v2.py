@@ -8,42 +8,39 @@ from numba import jit
 time_start = time.perf_counter()
 
 lattice_type = 'square'            #write square, triangular or hexagonal
-M = 50
-N = 50
-J = -1
-B = 0
-T = 0.1
-steps = 30
+M = 20
+N = 20
+J = -0.5
+steps = 1000
+
+Tc = (2*abs(J))/np.log(1+np.sqrt(2))         #Onsager critical temperature for square lattice
+print(Tc)
+
+T_sample = 20
+B_sample = 5
+
+T_min = 0.1                        #min temperature to explore
+T_max = 2                    #max temperature to explore
+
+B_min = -0.5                         #min magnetic field to explore
+B_max = 0.5                          #max magnetic field to explore
+
+T = np.linspace(T_min, T_max, T_sample)   #temperature range to explore
+B = np.linspace(B_min, B_max, B_sample)   #External magnetic field range to explore
 
 #creates lattice
 def lattice(M, N):
     if lattice_type == 'hexagonal':
         lattice = nx.hexagonal_lattice_graph(M, N, periodic=True, with_positions=True, create_using=None)
         lattice = nx.convert_node_labels_to_integers(lattice, first_label=0, ordering='default', label_attribute=None)
-        pos = nx.get_node_attributes(lattice, 'pos') #use for any shape other than square
     elif lattice_type == 'triangular':
         lattice = nx.triangular_lattice_graph(M, N, periodic=True, with_positions=True, create_using=None)
         lattice = nx.convert_node_labels_to_integers(lattice, first_label=0, ordering='default', label_attribute=None)
-        pos = nx.get_node_attributes(lattice, 'pos') #use for any shape other than square
     elif lattice_type == 'square':
         lattice = nx.grid_2d_graph(M, N, periodic=True, create_using=None)
         lattice = nx.convert_node_labels_to_integers(lattice, first_label=0, ordering='default', label_attribute=None)
-        pos = generate_grid_pos(lattice, M, N) #use for 2D grid network
 
-    return lattice, pos
-
-def generate_grid_pos(G, M, N):
-    p = []
-    for m in range(M):
-        for n in range(N):
-            p.append((n, m))
-    
-    grid_pos = {}
-    k = 0
-    for node in G:
-        grid_pos[node]=p[k]
-        k+=1
-    return grid_pos
+    return lattice
 
 #function that counts numer of nodes
 def num(G):
@@ -59,20 +56,9 @@ def spinass(G, spinlist):
         G.nodes[node]['spin']=spinlist[k]
         k+=1
 
-#create color map
-def colormap(G):
-    color=[]
-    for node in G:
-        if G.nodes[node]['spin']==1:
-            color.append('red')
-        else:
-            color.append('black')
-    return color
-
 #function for single step
 @jit(nopython=True)
-def step(A_dense, spinlist, beta):
-
+def step(A_dense, spinlist, beta, magfield, num):
     l=0
     while l <= steps:
     
@@ -87,15 +73,19 @@ def step(A_dense, spinlist, beta):
         nnsum = np.sum(A,axis=1)
     
         #What decides the flip is
-        dE=-4*J*np.multiply(nnsum, spinlist) + 2*B*spinlist
-    
+        dE=-4*J*np.multiply(nnsum, spinlist) + 2*magfield*spinlist
+        E = J*sum(np.multiply(nnsum, spinlist)) - magfield*sum(spinlist)   #total energy
+
         #Now flip every spin whose dE<0
         for offset in range(2):
             for i in range(offset,len(dE),2):
                 if dE[i]<0:
                     spinlist[i] *= -1
                 elif dE[i]==0:
-                    continue
+                    if np.exp(-(E/num)*beta) > np.random.rand():
+                        spinlist[i] *= -1
+                    else:
+                        continue
                 elif np.exp(-dE[i]*beta) > np.random.rand():
                     spinlist[i] *= -1
 
@@ -107,7 +97,6 @@ def step(A_dense, spinlist, beta):
                     A[m,n]=spinlist[n] #assigned to every element in the adj matrix the corresponding node spin value
 
         l += 1
-        print(l)
 
     return A, spinlist
 
@@ -121,41 +110,66 @@ def clustering(A, s):
     return A
 
 def main():
-    G, pos = lattice(M, N)
-
+    G = lattice(M, N)
+    
     n = num(G)
 
-    spinlist = np.random.choice(np.asarray([-1, 1]), n)  #generate random spins for each node
+    rand_spin = np.random.choice(np.asarray([-1, 1]), n)  #generate random spins for each node
     
-    spinass(G, spinlist)
+    spinass(G, rand_spin)
 
     Adj = nx.adjacency_matrix(G, nodelist=None, dtype=None, weight='weight')
     A_dense = Adj.todense()
 
-    #iterate some steps
-    A, s = step(A_dense, spinlist, 1/T)
 
-    spinass(G, spinlist)
-    color = colormap(G)
+    den_beta_J = np.empty((B_sample, T_sample))
+    btw_cen_beta_J = np.empty((B_sample, T_sample))
 
-    A_clust = clustering(A, s)
+    for i in range(len(B)):
+        for j in range(len(T)):              #run through different combinations of B and T
 
-    G2 = nx.from_scipy_sparse_array(sparse.csr_matrix(A_clust)) #G2 only hasa the relevant edges
+            spinlist = np.copy(rand_spin)
 
-    den = nx.density(G2)
-    print('Density = {}'.format(den))
-    ne = nx.number_of_edges(G2)
-    print('numer of edges = {}'.format(ne))
+            #iterate some steps
+            A, s = step(A_dense, spinlist, 1/T[j], B[i], n)
+
+            spinass(G, spinlist)
+
+            A_clust = clustering(A, s)
+
+            G2 = nx.from_scipy_sparse_array(sparse.csr_matrix(A_clust)) #G2 only hasa the relevant edges
+
+            den = nx.density(G2)
+            btw = nx.betweenness_centrality(G2).get(7)
+
+            den_beta_J[i, j] = den          #store density values
+            btw_cen_beta_J[i, j] = btw
+
+        print('{}/{}'.format(i+1, B_sample))
 
     time_elapsed = (time.perf_counter() - time_start)
     print ("checkpoint 1 %5.1f secs" % (time_elapsed))
 
-    fig, ax = plt.subplots(1, 2)
-    nx.draw(G2, node_color=color, node_size=20, ax=ax[0], edge_color='black', with_labels=False)
-    ax[0].set_title('Clustering')
-    nx.draw(G, node_color=color, node_size=20, ax=ax[1], edge_color='black', pos=pos, with_labels=False)
-    ax[1].set_title('Lattice')
+    ext = [T_min/Tc, T_max/Tc, B_min, B_max]
+
+    fig = plt.figure(figsize=(15, 15))
+    ax1 = fig.add_subplot(2, 2, 1)
+    ax2 = fig.add_subplot(2, 2, 2)
     
+    fig.suptitle('{}, size {}x{}, J={}, ev_steps={}'.format(lattice_type, M, N, J, steps))
+    
+    im1 = ax1.imshow(den_beta_J, cmap = 'coolwarm', origin='lower', extent=ext, aspect='auto', interpolation='spline36')
+    ax1.set_title('Density')
+    fig.colorbar(im1, ax=ax1)
+    ax1.set_ylabel('B')
+    ax1.set_xlabel('T/Tc')
+    
+    im2 = ax2.imshow(btw_cen_beta_J, cmap = 'coolwarm', origin='lower', extent=ext, aspect='auto', interpolation='spline36')
+    ax2.set_title('Betweeness')
+    fig.colorbar(im2, ax=ax2)
+    ax2.set_ylabel('B')
+    ax2.set_xlabel('T/Tc')
+
     time_elapsed = (time.perf_counter() - time_start)
     print ("checkpoint 2 %5.1f secs" % (time_elapsed))
     

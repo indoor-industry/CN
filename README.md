@@ -1,27 +1,29 @@
 # Monte Carlo simulation of the 2D Ising model
 
-Using the Metropolis-Hastings algorithm
+Using a variation Metropolis-Hastings algorithm in a complex network setting
+The code works for square, triangular and hexagonal lattice types and also for a random Erdos-Renyi graph (work in progress)
 
-ising.py gives a visual simulation (or energy plot) of a 2d grid iding model to test for parameter values such as J and beta
+ising_v3.py gives a visual simulation (or energy plot) of a 2d grid iding model to test for consistency tests of the other scripts
 
-ising_network_plot.py saves in time_ev snapshots of an ising network
+ising_network_plot_v5.py saves in time_ev snapshots of an evolving ising network
 
-ising_network_nrg.py sweeps trough values of beta and plots the time evolution of energy/lattice site
-ising_network_nrg_opt.py is faster
+ising_network_nrg_v8.py sweeps trough values of beta and plots various parameters against temperature
 
-clustering.py creates a new graph with only clusters of neighbours with same spins, to calculate relevant network parameters
+ising_network_nrg_time_v3.py plots magnetisation and energy in time
 
-Typical values of constants:
-T usually from 0 to 1e3 K
-set k=1 (then T is measured in terms of eV)
-since beta=1/T: beta goes from 1e-3 K^(-1) to inf K^(-1)
-but since k=1e-4eV/K, if set to 1 this implies 1 K^(-1)=1e4 eV^(-1)
-hence notice beta in the code will be given in values ranging from 10 ev^(-1) to inf ev^(-1)
+ising_network_double_plots_v3.py plots a 2D colormap of energy and magnetisation in both T and external field B
 
-meanwhile J usually around 1e-4 (magnetic interaction)
+ising_network_clustering_v6.py plots the clustered version of the network after equilibrium is reached
+The clustered version of the network is the one in which only edges between equal spins are kept, hence it shows clusters of aligned spins
 
-for T=0.1    beta=    10
-for T=  1    beta=    1
-for T=  10   beta=  0.1
-for T=  100  beta= 0.01
-for T=  1000 beta=0.001
+ising_network_clustering_sweep_v2.py plots some network parameters of the clustered network against temperature
+
+ising_network_clustering_doublesweep_v2.py is similar to double_plots above but for the clustered network
+
+weighted_network_plot_v2.py creates a fully connected network of nodes with edges the average correlation in time and trough the lattice between spins
+
+weighted_network_doucle_plots_v2.py as above but with density
+
+correlation_lenght.py plots and fits the correlation in a specific temperature and fits it to an exponential to find the correlation lenght (work in progress)
+
+correlation_lenght sweeps speak for themselves

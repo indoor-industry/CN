@@ -6,12 +6,12 @@ import time
 time_start = time.perf_counter()
 
 lattice_type = 'square'            #write square, triangular or hexagonal
-M = 20
-N = 20                      #MxN size of lattice
-J = -0.2                    #spin-spin coupling strenght
+M = 30
+N = 30                      #MxN size of lattice
+J = -0.5                    #spin-spin coupling strenght
 B = 0
-T = 3                  #external field (actually is mu*B where mu is magnetic moment of atoms)
-steps = 20                 #evolution timesteps
+T = 1                  #external field (actually is mu*B where mu is magnetic moment of atoms)
+steps = 100                 #evolution timesteps
 
 #creates lattice
 def lattice(M, N):
@@ -48,6 +48,13 @@ def spinass(G):
     for node in G:
         G.nodes[node]['spin']=np.random.choice([-1, 1])
 
+#count number of sites in lattice
+def num(G):
+    n = 0
+    for node in G:
+        n += 1
+    return n
+
 #creates color map
 def colormap(G):
     color=[]
@@ -59,7 +66,7 @@ def colormap(G):
     return color
 
 #function for single step
-def step(G):
+def step(G, num):
     #create ordered list of spins
     spin = nx.get_node_attributes(G, 'spin')
     spinlist = np.asarray(list(dict.values(spin)))
@@ -77,20 +84,24 @@ def step(G):
 
     #What decides the flip is
     dE=-4*J*np.multiply(nnsum, spinlist) + 2*B*spinlist
+    E = J*sum(np.multiply(nnsum, spinlist)) - B*sum(spinlist)   #total energy
 
     for offset in range(2):
         for i in range(offset,len(dE),2):
             if dE[i]<0:
                 G.nodes[i]['spin'] *= -1
             elif dE[i] == 0:
-                continue
+                if np.exp(-(E/num)/T) > np.random.rand():
+                    G.nodes[i]['spin'] *= -1
+                else:
+                    continue
             elif np.exp(-dE[i]/T) > np.random.rand():
                 G.nodes[i]['spin'] *= -1    
 
     return G
 
 #iterate steps and print
-def iter(G, steps, pos):
+def iter(G, steps, pos, num):
     
     #run first step to visualize initial condiditons
     color = colormap(G)
@@ -102,27 +113,25 @@ def iter(G, steps, pos):
     
     i=0
     while i <= steps:
-        G = step(G)
-
-        #update color map
-        color = colormap(G)
-        
-        nx.draw(G, node_color=color, node_size=20, edge_color='white', pos=pos, with_labels=False)
-
-        plt.pause(1)                                    #this shows an animation
-        #plt.savefig('time_ev/step({}).png'.format(i+1))  #this saves the series of images
-    
+        G = step(G, num)
+        if i % 10==0:
+            #update color map
+            color = colormap(G)
+            nx.draw(G, node_color=color, node_size=20, edge_color='white', pos=pos, with_labels=False)
+            plt.pause(0.1)                                    #this shows an animation
+            plt.savefig('time_ev/step({}).png'.format(i+1))  #this saves the series of images
         print(i)
-    
         i+=1
 
 def main():
     #create lattice
     G, pos = lattice(M, N)
+    #number of nodes
+    n = num(G)
     #run it
     spinass(G)
     #iterate given number of times
-    iter(G, steps, pos)
+    iter(G, steps, pos, n)
 
     time_elapsed = (time.perf_counter() - time_start)
     print ("checkpoint %5.1f secs" % (time_elapsed))

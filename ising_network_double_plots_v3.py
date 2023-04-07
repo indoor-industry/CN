@@ -11,21 +11,23 @@ J = -1                           #spin coupling
 M = 20                             #lattice size MxN
 N = 20
 steps = 1000                         #number of timesteps of evolution per given temperature
-sample = 20                        #number of samples between minimum and maximum values of B and T
+B_sample = 15                        #number of samples between minimum and maximum values of B NEEDS TO BE ODD FOR SENSIBLE RESULTS
+T_sample = 30                        #number of samples between minimum and maximum values of T
 eq_steps=100
+Tc = (2*abs(J))/np.log(1+np.sqrt(2))         #Onsager critical temperature for square lattice
 
 T_min = 0.1                        #min temperature to explore
-T_max = 1.5                        #max temperature to explore
+T_max = 1.5*Tc                        #max temperature to explore
 
 B_min = -1                         #min magnetic field to explore
 B_max = 1                          #max magnetic field to explore
 
-T = np.linspace(T_min, T_max, sample)   #temperature range to explore
+T = np.linspace(T_min, T_max, T_sample)   #temperature range to explore
 
 ones = np.ones(len(T))                  #convert to inverse temperature
 beta = ones/T
 
-B = np.linspace(B_min, B_max, sample)   #External magnetic field range to explore
+B = np.linspace(B_min, B_max, B_sample)   #External magnetic field range to explore
 
 #function creates lattice
 def lattice(M, N):
@@ -50,14 +52,23 @@ def step(A_dense, beta, B, num):
 
     def mean(list):
         return sum(list)/len(list)
+    
+    def mean_square(data):
+        sum_of_squares=0
+        for element in range(len(data)):
+            sum_of_squares += data[element]**2
+        return np.sqrt(sum_of_squares/len(data))
 
-    M_beta_J = np.empty((sample, sample))
-    E_beta_J = np.empty((sample, sample))
+    M_beta_J = np.empty((B_sample, T_sample))
+    E_beta_J = np.empty((B_sample, T_sample))
+
+    rand_spin = np.random.choice(np.asarray([-1, 1]), num)  #generate random spins for each node
 
     for i in range(len(B)):
         for j in range(len(beta)):              #run through different combinations of B and T
-
-            spinlist = np.random.choice(np.asarray([-1, 1]), num)  #generate random spins for each node
+            
+            spinlist = np.copy(rand_spin)
+            #spinlist = np.random.choice(np.asarray([-1, 1]), num)  #generate random spins for each node
 
             M_time=[]
             E_time=[]
@@ -84,8 +95,11 @@ def step(A_dense, beta, B, num):
                     for l in range(offset,len(dE),2):
                         if dE[l]<0:
                             spinlist[l] *= -1
-                        elif dE[l]==0:
-                            continue
+                        elif dE[l] == 0:
+                            if np.exp(-(E/num)*beta[j]) > np.random.rand():
+                                spinlist[l] *= -1
+                            else:
+                                continue
                         elif np.exp(-dE[l]*beta[j]) > np.random.rand():    #thermal noise
                             spinlist[l] *= -1   
 
@@ -93,7 +107,7 @@ def step(A_dense, beta, B, num):
                 M_time.append(M)
 
             M_beta_J[i, j] = mean(M_time[eq_steps:])          #store magnetisation values
-            E_beta_J[i, j] = mean(E_time[eq_steps:])          #store energy values
+            E_beta_J[i, j] = mean_square(E_time[eq_steps:])/abs(J)          #store energy values
 
         print(i)
 
@@ -120,7 +134,7 @@ def main():
     #np.savetxt("M.csv", M_beta_J/n, delimiter=",")
 
     #plot
-    ext = [T_min, T_max, B_min, B_max]
+    ext = [T_min/Tc, T_max/Tc, B_min, B_max]
     
     fig = plt.figure(figsize=(15, 15))
     ax1 = fig.add_subplot(2, 2, 1)
@@ -132,13 +146,13 @@ def main():
     ax1.set_title('M/site')
     fig.colorbar(im1, ax=ax1)
     ax1.set_ylabel('B')
-    ax1.set_xlabel('T')
+    ax1.set_xlabel('T/Tc')
     
     im2 = ax2.imshow(E_beta_J/n, cmap = 'Reds', origin='lower', extent=ext, aspect='auto', interpolation='spline36')
-    ax2.set_title('E/site')
+    ax2.set_title('(E/J)/site')
     fig.colorbar(im2, ax=ax2)
     ax2.set_ylabel('B')
-    ax2.set_xlabel('T')
+    ax2.set_xlabel('T/Tc')
     
     time_elapsed = (time.perf_counter() - time_start)
     print ("checkpoint 2 %5.1f secs" % (time_elapsed))

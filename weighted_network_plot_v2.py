@@ -1,20 +1,26 @@
+#ONLY FOR PERIODIC LATTICES
+
 import networkx as nx
 import matplotlib.pyplot as plt
+import matplotlib as mpl
 import numpy as np
 import time
 from numba import jit
-from scipy import optimize
 
 time_start = time.perf_counter()
 
+k_b = 8.617333262e-5
 lattice_type = 'square'            #write square, triangular or hexagonal
 J = -0.5                        #spin coupling constant
 B = 0                     #external magnetic field
-M = 20                          #lattice size MxN
-N = 20
+M = 10                          #lattice size MxN
+N = 10
 steps = 1000                      #number of evolution steps per given temperature
-max_r = 20
-T = 1
+
+Tc = (2*abs(J))/np.log(1+np.sqrt(2))         #Onsager critical temperature for square lattice
+print(Tc)
+
+T = 0.5
 
 #function creates lattice
 def lattice(M, N):
@@ -36,21 +42,24 @@ def num(G):
         n += 1
     return n
 
-def distances(num, spl):
-    lenghts = np.empty((num, num))
+#creates color map
+def colormap(spinlist, num):
+    color=[]
     for i in range(num):
-        dictionary_per_node_i = spl[i][1]                   #returns an nxn matrix, element m,n is the distance between node m and node n
-        for j in range(num):
-            lenghts[i, j] = dictionary_per_node_i[j]
-    return lenghts
+        if spinlist[i]==1:
+            color.append('red')
+        else:
+            color.append('black')
+    return color
 
 @jit(nopython=True)
-def step(A_dense, beta, num, nn_number, lenghts):
+def step(A_dense, beta, num):
 
+    corr_matrix = np.zeros((num, num))
+    
     spinlist = np.random.choice(np.array([1, -1]), num)   #create random spins for nodes
     
-    l=0
-    while l <= steps:                               #evolve trough steps number of timesteps
+    for l in range(steps):                               #evolve trough steps number of timesteps
 
         A = np.copy(A_dense)                        #take new copy of adj. matrix at each step because it gets changed trough the function
 
@@ -64,8 +73,8 @@ def step(A_dense, beta, num, nn_number, lenghts):
 
         #What decides the flip is
         dE = -4*J*np.multiply(nnsum, spinlist) + 2*B*spinlist    #change in energy
-        E = J*sum(np.multiply(nnsum, spinlist)) - B*sum(spinlist)   #total energy
-
+        E = J*sum(np.multiply(nnsum, spinlist)) - B*sum(spinlist)   #total energy    
+    
         #change spins if energetically favourable or according to thermal noise
         for offset in range(2):                 #offset to avoid interfering with neighboring spins while rastering
             for i in range(offset,len(dE),2):
@@ -78,25 +87,24 @@ def step(A_dense, beta, num, nn_number, lenghts):
                         continue
                 elif np.exp(-dE[i]*beta) > np.random.rand():     #thermal noise
                     spinlist[i] *= -1
-
-        l+=1
-
-    r = []
-    corr_r = []
-    for radius in np.arange(1, max_r+1):
-        corr=0
+        
         for atom in range(num):
-            mean = 0
             for neighbour in range(num):
-                if lenghts[atom, neighbour] == radius:                  
-                    corr += (spinlist[atom]*spinlist[neighbour])    #measures correlation for a given distance
-                    mean += spinlist[neighbour]
-            corr2 = corr/(nn_number*radius)-mean**2/(nn_number*radius)**2
-        corr3 = corr2/num
-        r.append(radius)                        
-        corr_r.append(abs(corr3))         #measures correlation in relation to distance  
+                corr_matrix[atom][neighbour]+=(spinlist[atom]*spinlist[neighbour])              
 
-    return corr_r, r 
+    norm_corr_matrix = corr_matrix/steps
+    
+    di = []
+    for a in range(num):
+        den=0
+        for q in range(num):
+            if q != a:
+                den += norm_corr_matrix[a][q]
+        di.append(den/(num-1))
+    
+    density = sum(di)/num
+
+    return norm_corr_matrix, spinlist, density
 
 
 def main():
@@ -107,39 +115,43 @@ def main():
     G = nx.convert_node_labels_to_integers(G, first_label=0, ordering='default', label_attribute=None)
     #get number of nodes
     n = num(G)
-
-    spl = (list(nx.all_pairs_shortest_path_length(G)))
                 
     #extract adjacency matrix and convert to numpy dense array
     Adj = nx.adjacency_matrix(G, nodelist=None, dtype=None, weight='weight')
     A_dense = Adj.todense()
 
-    lenghts = distances(n, spl)
-
     #iterate steps and sweep trough beta
-    corr_r, r = step(A_dense, 1/T, n, nn_number, lenghts)
+    corr_matrix, spins, density = step(A_dense, 1/T, n)
 
-    def func(x, cl):
-        return np.exp(-x/cl)
+    print(density)
 
-    xi, cov = optimize.curve_fit(func, r, corr_r)
-    print(xi)
-    print(cov)
+    G_corr = nx.create_empty_copy(G, with_data=True)
 
-    y=[]
-    for i in range(max_r):
-        y.append(func(r[i], xi).item())
-    
-    plt.plot(r, y)
+    pos=0
+    neg=0
+    for i in range(n):
+        for j in range(n):
+            if j<i:
+                G_corr.add_edge(i, j, weight=corr_matrix[i][j])
+                if corr_matrix[i][j]>0:
+                    pos += 1
+                else:
+                    neg += 1
 
-    plt.scatter(r, corr_r)
-    plt.xlabel('node distance')
-    plt.ylabel('correlation')
-    plt.title('J={}, B={}, ev_steps={}, T={}, size={}x{}'.format(J, B, steps, T, M, N))
+    print(pos)
+    print(neg)
+    print(pos+neg)
+
+    w = nx.get_edge_attributes(G_corr, 'weight')
+
+    color = colormap(spins, n)
+    nx.draw_networkx(G_corr, node_size=10, node_color=color, with_labels=False, edge_cmap=mpl.colormaps['seismic'], edge_vmin=-1, edge_vmax=1, edge_color=list(w.values()), width=0.1)#np.exp(abs(np.array(list(w.values())))))
+    plt.title('{} T={}'.format(lattice_type, T))
+    plt.legend(title='red={}, blue={}, total={}'.format(pos, neg, pos+neg), loc='upper left')
 
     time_elapsed = (time.perf_counter() - time_start)
     print ("checkpoint %5.1f secs" % (time_elapsed))
-
+    
     plt.show()
 
 if __name__ =="__main__":
