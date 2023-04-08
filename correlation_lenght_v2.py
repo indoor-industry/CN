@@ -6,19 +6,19 @@ from numba import jit
 
 time_start = time.perf_counter()
 
-lattice_type = 'square'            #write square, triangular or hexagonal
-J = -0.5                       #spin coupling constant
-B = 0                     #external magnetic field
-M = 20                          #lattice size MxN
+lattice_type = 'square'              #write square, triangular or hexagonal
+J = -0.5                             #spin coupling constant
+B = 0                                #external magnetic field
+M = 20                               #lattice size MxN
 N = 20
-steps = 100                      #number of evolution steps per given temperature
-max_r = 10
-repeat = 10
+steps = 100                         #number of evolution steps per given temperature
+max_r = 15
+repeat = 100
 
 Tc = (2*abs(J))/np.log(1+np.sqrt(2))         #Onsager critical temperature for square lattice
 print(Tc)
 
-T = np.linspace(0.1, 5, 30)
+T = 0.1
 
 #function creates lattice
 def lattice(M, N):
@@ -31,6 +31,7 @@ def lattice(M, N):
     elif lattice_type == 'square':
         lattice = nx.grid_2d_graph(M, N, periodic=True, create_using=None)
         return lattice, 4
+    #return lattice
 
 #count number of sites in lattice
 def num(G):
@@ -48,10 +49,10 @@ def distances(num, spl):
     return lenghts
 
 @jit(nopython=True)
-def step(A_dense, beta, num, nn_number, lenghts, rand_spin):
+def step(A_dense, beta, num, nn_number, lenghts):
 
-    spinlist = np.copy(rand_spin)
-
+    spinlist = np.random.choice(np.array([1, -1]), num)   #create random spins for nodes
+    
     corr_repeats = np.empty((repeat, max_r))
     corr_r = np.zeros(max_r)
     
@@ -89,21 +90,23 @@ def step(A_dense, beta, num, nn_number, lenghts, rand_spin):
             l+=1
 
         r = []
-        #corr_r = []
-        for radius in np.arange(1, max_r+1):
+        for radius in range(max_r):
             corr=0
             for atom in range(num):
                 mean = 0
                 for neighbour in range(num):
-                    if lenghts[atom, neighbour] == radius:  
+                    if lenghts[atom, neighbour] == radius:
                         corr += (spinlist[atom]*spinlist[neighbour])    #measures correlation for a given distance
-                        mean += spinlist[neighbour]
-                corr2 = corr/(nn_number*radius)-mean**2/(nn_number*radius)**2
+                        mean += spinlist[neighbour]                
+                if radius == 0:
+                    corr2 = corr
+                else:    
+                    corr2 = corr/(nn_number*radius)-mean**2/(nn_number*radius)**2
             corr3 = corr2/num
             r.append(radius)                        
             corr_repeats[rep][radius] = abs(corr3)
 
-    for y in np.arange(1, max_r+1):
+    for y in range(max_r):
         for x in range(repeat):
             corr_r[y]+=corr_repeats[x][y]
         corr_r[y] = corr_r[y]/repeat
@@ -127,29 +130,18 @@ def main():
     A_dense = Adj.todense()
 
     lenghts = distances(n, spl)
+    
+    #iterate steps and sweep trough beta
+    corr_r, r = step(A_dense, 1/T, n, nn_number, lenghts)
 
-    rand_spin = np.random.choice(np.array([-1, 1]), n)   #create random spins for nodes
-
-    max_len=[]
-    mean = []
-    for i in range(len(T)):
-        #iterate steps and sweep trough beta
-        corr_r, r = step(A_dense, 1/T[i], n, nn_number, lenghts, rand_spin)
-        
-        #plt.plot(r, corr_r, label='T={:10.1f}'.format(T[i]))
-        #plt.legend()
-        #plt.xlabel('node distance')
-        #plt.ylabel('correlation')
-
-        mean.append(np.mean(corr_r))
-        
-        print('{}/{}'.format(i, len(T)))
+    plt.scatter(r, corr_r)
+    plt.xlabel('node distance r')
+    plt.ylabel('<$\sigma(i)\sigma(i+r)$>')
+    plt.title('J={}, B={}, ev_steps={}, T={}, size={}x{}'.format(J, B, steps, T, M, N))
 
     time_elapsed = (time.perf_counter() - time_start)
     print ("checkpoint %5.1f secs" % (time_elapsed))
 
-    plt.scatter(T/Tc, mean)
-    plt.title('correlation vs T/Tc')
     plt.show()
 
 if __name__ =="__main__":

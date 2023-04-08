@@ -6,11 +6,11 @@ import time
 time_start = time.perf_counter()
 
 lattice_type = 'square'            #write square, triangular or hexagonal
-M = 30
-N = 30                      #MxN size of lattice
+M = 50
+N = 50                      #MxN size of lattice
 J = -0.5                    #spin-spin coupling strenght
 B = 0
-T = 1                  #external field (actually is mu*B where mu is magnetic moment of atoms)
+T = 1.13                  #external field (actually is mu*B where mu is magnetic moment of atoms)
 steps = 100                 #evolution timesteps
 
 #creates lattice
@@ -83,7 +83,7 @@ def step(G, num):
     nnsum = np.sum(A,axis=1).tolist()
 
     #What decides the flip is
-    dE=-4*J*np.multiply(nnsum, spinlist) + 2*B*spinlist
+    dE= -4*J*np.multiply(nnsum, spinlist) + 2*B*spinlist
     E = J*sum(np.multiply(nnsum, spinlist)) - B*sum(spinlist)   #total energy
 
     for offset in range(2):
@@ -114,7 +114,7 @@ def iter(G, steps, pos, num):
     i=0
     while i <= steps:
         G = step(G, num)
-        if i % 10==0:
+        if i % 10==0:            #skip steps if needed
             #update color map
             color = colormap(G)
             nx.draw(G, node_color=color, node_size=20, edge_color='white', pos=pos, with_labels=False)

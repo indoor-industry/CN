@@ -16,7 +16,7 @@ B = 0
 Tc = (2*abs(J))/np.log(1+np.sqrt(2))         #Onsager critical temperature for square lattice
 print(Tc)
 
-T = 1
+T = 1.2
 steps = 1000
 
 #creates lattice

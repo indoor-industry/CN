@@ -15,7 +15,7 @@ N = 20
 steps = 10000                      #number of evolution steps per given temperature
 
 Tc = (2*abs(J))/np.log(1+np.sqrt(2))         #Onsager critical temperature for square lattice
-T = 0.5*Tc                             #temperature 
+T = 3                           #temperature 
 
 #function creates lattice
 def lattice(M, N):

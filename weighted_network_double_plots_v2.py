@@ -87,6 +87,7 @@ def step(A_dense, beta, num, B):
                 #What decides the flip is
                 dE = -4*J*np.multiply(nnsum, spinlist) + 2*B[r]*spinlist        #change in energy     
                 E = J*sum(np.multiply(nnsum, spinlist)) - B[r]*sum(spinlist)    #total energy    
+                M = np.sum(spinlist)
 
                 #change spins if energetically favourable or according to thermal noise
                 for offset in range(2):                         #offset to avoid interfering with neighboring spins while rastering
@@ -104,7 +105,7 @@ def step(A_dense, beta, num, B):
 
                 for atom in range(num):
                     for neighbour in range(num):
-                        corr_matrix[atom][neighbour]+=(spinlist[atom]*spinlist[neighbour]) 
+                        corr_matrix[atom][neighbour]+=(spinlist[atom]*spinlist[neighbour]) - (M/num)**2
 
             norm_corr_matrix = corr_matrix/steps
 

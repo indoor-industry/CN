@@ -8,19 +8,19 @@ import numba as nb
 time_start = time.perf_counter()
 
 k_b = 8.617333262e-5
-lattice_type = 'square'            #write square, triangular or hexagonal
+lattice_type = 'square'            #write square, triangular or hexagonal, ER
 J = -0.5                       #spin coupling constant
 B = 0                       #external magnetic field
-M = 20                          #lattice size MxN
-N = 20
+M = 30                          #lattice size MxN
+N = 30
 steps = 1000                      #number of evolution steps per given temperature
 steps_to_eq = 100                   #steps until equilibrium is reached
-repeat = 1                     #number of trials per temperature to average over
+repeat = 10                     #number of trials per temperature to average over
 
 Tc = (2*abs(J))/np.log(1+np.sqrt(2))         #Onsager critical temperature for square lattice
 print(Tc)
 
-T = np.linspace(0.1, 5, 50)   #temperature range
+T = np.linspace(0.5, 1.5, 30)   #temperature range
 
 ones = np.ones(len(T))
 beta = ones/(T)
@@ -33,6 +33,8 @@ def lattice(M, N):
         lattice = nx.triangular_lattice_graph(M, N, periodic=True, with_positions=True, create_using=None)
     elif lattice_type == 'square':
         lattice = nx.grid_2d_graph(M, N, periodic=True, create_using=None)
+    elif lattice_type == 'ER':
+        lattice = nx.erdos_renyi_graph(M*N, 0.01, seed=None, directed=False)
     return lattice
 
 #count number of sites in lattice
