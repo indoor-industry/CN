@@ -8,9 +8,9 @@ time_start = time.perf_counter()
 lattice_type = 'square'            #write square, triangular or hexagonal
 M = 50
 N = 50                      #MxN size of lattice
-J = -0.5                    #spin-spin coupling strenght
+J = -1                    #spin-spin coupling strenght
 B = 0
-T = 1.13                  #external field (actually is mu*B where mu is magnetic moment of atoms)
+T = 1                  #external field (actually is mu*B where mu is magnetic moment of atoms)
 steps = 100                 #evolution timesteps
 
 #creates lattice
