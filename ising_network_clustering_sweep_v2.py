@@ -7,17 +7,17 @@ from numba import jit
 
 time_start = time.perf_counter()
 
-lattice_type = 'square'            #write square, triangular or hexagonal
+lattice_type = 'hexagonal'            #write square, triangular or hexagonal
 M = 20
 N = 20
-J = -0.5
+J = -1
 B = 0
 steps = 1000
 
 Tc = (2*abs(J))/np.log(1+np.sqrt(2))         #Onsager critical temperature for square lattice
 print(Tc)
 
-T = np.linspace(0.1, 2, 50)
+T = np.linspace(0.01*Tc, 0.4*Tc, 50)
 ones = np.ones(len(T))
 beta = ones/T
 

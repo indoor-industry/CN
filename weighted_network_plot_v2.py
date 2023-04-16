@@ -10,8 +10,8 @@ from numba import jit
 time_start = time.perf_counter()
 
 k_b = 8.617333262e-5
-lattice_type = 'square'            #write square, triangular or hexagonal
-J = -0.5                        #spin coupling constant
+lattice_type = 'hexagonal'            #write square, triangular or hexagonal
+J = -1                        #spin coupling constant
 B = 0                     #external magnetic field
 M = 10                          #lattice size MxN
 N = 10
@@ -20,7 +20,7 @@ steps = 1000                      #number of evolution steps per given temperatu
 Tc = (2*abs(J))/np.log(1+np.sqrt(2))         #Onsager critical temperature for square lattice
 print(Tc)
 
-T = 0.7
+T = 1*Tc
 
 #function creates lattice
 def lattice(M, N):

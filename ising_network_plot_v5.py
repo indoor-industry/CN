@@ -5,9 +5,9 @@ import time
 
 time_start = time.perf_counter()
 
-lattice_type = 'square'            #write square, triangular or hexagonal
-M = 50
-N = 50                      #MxN size of lattice
+lattice_type = 'triangular'            #write square, triangular or hexagonal
+M = 70
+N = 70                      #MxN size of lattice
 J = -1                    #spin-spin coupling strenght
 B = 0
 T = 1                  #external field (actually is mu*B where mu is magnetic moment of atoms)

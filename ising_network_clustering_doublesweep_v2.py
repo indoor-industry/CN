@@ -7,10 +7,10 @@ from numba import jit
 
 time_start = time.perf_counter()
 
-lattice_type = 'square'            #write square, triangular or hexagonal
-M = 10
-N = 10
-J = -0.5
+lattice_type = 'hexagonal'            #write square, triangular or hexagonal
+M = 20
+N = 20
+J = -1
 steps = 1000
 
 Tc = (2*abs(J))/np.log(1+np.sqrt(2))         #Onsager critical temperature for square lattice
@@ -19,8 +19,8 @@ print(Tc)
 T_sample = 20
 B_sample = 5
 
-T_min = 0.1                        #min temperature to explore
-T_max = 2                    #max temperature to explore
+T_min = 0.01*Tc                        #min temperature to explore
+T_max = 0.4*Tc                    #max temperature to explore
 
 B_min = -0.5                         #min magnetic field to explore
 B_max = 0.5                          #max magnetic field to explore
@@ -158,13 +158,13 @@ def main():
     
     fig.suptitle('{}, size {}x{}, J={}, ev_steps={}'.format(lattice_type, M, N, J, steps))
     
-    im1 = ax1.imshow(den_beta_J, cmap = 'coolwarm', origin='lower', extent=ext, aspect='auto', interpolation='spline36')
+    im1 = ax1.imshow(den_beta_J, cmap = 'binary', origin='lower', extent=ext, aspect='auto', interpolation='spline36')
     ax1.set_title('Density')
     fig.colorbar(im1, ax=ax1)
     ax1.set_ylabel('B')
     ax1.set_xlabel('T/Tc')
     
-    im2 = ax2.imshow(btw_cen_beta_J, cmap = 'coolwarm', origin='lower', extent=ext, aspect='auto', interpolation='spline36')
+    im2 = ax2.imshow(btw_cen_beta_J, cmap = 'binary', origin='lower', extent=ext, aspect='auto', interpolation='spline36')
     ax2.set_title('Betweeness')
     fig.colorbar(im2, ax=ax2)
     ax2.set_ylabel('B')

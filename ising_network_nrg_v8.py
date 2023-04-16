@@ -8,11 +8,11 @@ import numba as nb
 time_start = time.perf_counter()
 
 k_b = 8.617333262e-5
-lattice_type = 'square'            #write square, triangular or hexagonal, ER
+lattice_type = 'hexagonal'            #write square, triangular or hexagonal, ER
 J = -1                       #spin coupling constant
-B = 0                       #external magnetic field
-M = 20                          #lattice size MxN
-N = 20
+B = 0.25                       #external magnetic field
+M = 10                          #lattice size MxN
+N = 10
 steps = 1000                      #number of evolution steps per given temperature
 steps_to_eq = 100                   #steps until equilibrium is reached
 repeat = 10                     #number of trials per temperature to average over
@@ -20,7 +20,7 @@ repeat = 10                     #number of trials per temperature to average ove
 Tc = (2*abs(J))/np.log(1+np.sqrt(2))         #Onsager critical temperature for square lattice
 print(Tc)
 
-T = np.linspace(1.5, 3, 50)   #temperature range
+T = np.linspace(0.1, 1, 50)   #temperature range
 
 ones = np.ones(len(T))
 beta = ones/(T)
@@ -88,7 +88,7 @@ def step(A_dense, beta, num):
             l=0
             E_time = np.empty(steps)
             M_time = np.empty(steps)
-            while l <= steps:                               #evolve trough steps number of timesteps
+            for h in range(10*steps):                               #evolve trough steps number of timesteps
 
                 A = np.copy(A_dense)                        #take new copy of adj. matrix at each step because it gets changed trough the function
 
@@ -119,9 +119,10 @@ def step(A_dense, beta, num):
                         elif np.exp(-dE[i]*beta[j]) > np.random.rand():     #thermal noise
                             spinlist[i] *= -1
 
-                E_time[l] = E            #list of energy trough time
-                M_time[l] = M            #list of magnetisation trough time
-                l+=1
+                if h % 10 == 0:
+                    E_time[l] = E            #list of energy trough time
+                    M_time[l] = M            #list of magnetisation trough time
+                    l+=1
 
             var_E = variance(E_time[steps_to_eq:])     #variance of energy (start aquiring after equilibrium is reached)
             var_M = variance(M_time[steps_to_eq:])     #same as above for magnetisation
