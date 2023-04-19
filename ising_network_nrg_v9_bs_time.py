@@ -3,24 +3,24 @@ import matplotlib.pyplot as plt
 import numpy as np
 import time
 from numba import jit
-import numba as nb
 
 time_start = time.perf_counter()
 
 k_b = 8.617333262e-5
-lattice_type = 'hexagonal'            #write square, triangular or hexagonal, ER
+lattice_type = 'square'            #write square, triangular or hexagonal, ER
 J = -1                       #spin coupling constant
-B = 0.25                       #external magnetic field
-M = 10                          #lattice size MxN
-N = 10
+B = 0                       #external magnetic field
+M = 20                          #lattice size MxN
+N = 20
 steps = 1000                      #number of evolution steps per given temperature
 steps_to_eq = 100                   #steps until equilibrium is reached
 repeat = 10                     #number of trials per temperature to average over
+nbstrap = 100
 
 Tc = (2*abs(J))/np.log(1+np.sqrt(2))         #Onsager critical temperature for square lattice
 print(Tc)
 
-T = np.linspace(0.1, 1, 50)   #temperature range
+T = np.linspace(0.1, 3, 20)   #temperature range
 
 ones = np.ones(len(T))
 beta = ones/(T)
@@ -119,15 +119,42 @@ def step(A_dense, beta, num):
                         elif np.exp(-dE[i]*beta[j]) > np.random.rand():     #thermal noise
                             spinlist[i] *= -1
 
-                if h % 10 == 0:
+                if h % 10 == 0:             #acquire every 10 steps to reduce correlations between aquisitions
                     E_time[l] = E            #list of energy trough time
                     M_time[l] = M            #list of magnetisation trough time
                     l+=1
 
-            var_E = variance(E_time[steps_to_eq:])     #variance of energy (start aquiring after equilibrium is reached)
-            var_M = variance(M_time[steps_to_eq:])     #same as above for magnetisation
-            mean_E = mean(E_time[steps_to_eq:])
-            mean_M = mean_square(M_time[steps_to_eq:])
+            def bootstrap(G):
+                G_bootstrap = []
+                for i in range(steps-steps_to_eq):
+                    alpha = int(np.random.uniform(0, steps-steps_to_eq))
+                    G_bootstrap.append(G[alpha])
+                return G_bootstrap
+
+            def bs_mean(G):                                             # MC avg of G
+                G_bs_mean = np.empty(steps-steps_to_eq)        
+                for n in range(steps-steps_to_eq):                                  # compute MC averages
+                    avg_G = 0
+                    for alpha in range(len(G)):
+                        avg_G += G[alpha][n]
+                    avg_G = avg_G/len(G)
+                    G_bs_mean[n] = avg_G
+                return G_bs_mean
+
+            bsM_time = np.empty((nbstrap, steps-steps_to_eq))
+            bsE_time = np.empty((nbstrap, steps-steps_to_eq))
+            for p in range(nbstrap):
+                g = bootstrap(E_time[steps_to_eq:])
+                f = bootstrap(M_time[steps_to_eq:])
+                bsE_time[p] = g
+                bsM_time[p] = f
+            bsE_time_avg = bs_mean(bsE_time)
+            bsM_time_avg = bs_mean(bsM_time)
+
+            var_E = variance(bsE_time_avg)     #variance of energy (start aquiring after equilibrium is reached)
+            var_M = variance(bsM_time_avg)     #same as above for magnetisation
+            mean_E = mean(bsE_time_avg)
+            mean_M = mean_square(bsM_time_avg)
 
             rep_mean_E[t] = mean_E                   #done 'repeat' number of times
             rep_mean_M[t] = mean_M
@@ -152,15 +179,27 @@ def main():
 
     #create lattice
     G = lattice(M, N)
+    
     #convert node labels to integers
     G = nx.convert_node_labels_to_integers(G, first_label=0, ordering='default', label_attribute=None)
+    
     #get number of nodes
     n = num(G)
+    
     #extract adjacency matrix and convert to numpy dense array
     Adj = nx.adjacency_matrix(G, nodelist=None, dtype=None, weight='weight')
     A_dense = Adj.todense()
+    
     #iterate steps and sweep trough beta
     E_beta, M_beta, cv_beta, xi_beta, n = step(A_dense, beta, n)
+    
+    #save the data
+    np.savetxt(f"data/E_{M}x{N}_{lattice_type}_B={B}.csv", E_beta, delimiter=",")
+    np.savetxt(f"data/M_{M}x{N}_{lattice_type}_B={B}.csv", M_beta, delimiter=",")
+    np.savetxt(f"data/cv_{M}x{N}_{lattice_type}_B={B}.csv", cv_beta, delimiter=",")
+    np.savetxt(f"data/xi_{M}x{N}_{lattice_type}_B={B}.csv", xi_beta, delimiter=",")
+    np.savetxt(f"data/T_{M}x{N}_{lattice_type}_B={B}.csv", T, delimiter=",")
+
     #for normalization purposes
     n_normalize = n*np.ones(len(E_beta)) 
 
