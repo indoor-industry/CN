@@ -13,7 +13,7 @@ N=500
 #temperature
 J = -0.5
 B = 0
-T = 10
+T = 1
 beta = 1/T
 steps = 100
 
@@ -38,11 +38,11 @@ def update(field, n, m, beta, E):
             nnsum += field[i % N, j % M] #sum over nearest neighbours
     dE = -4*field[n, m] * nnsum * J + 2*B*field[n, m]  #change in energy
     E = J*field[n, m]*nnsum - B*field[n, m]    #energy of single site
-    if dE < 0:
+    if dE <= 0:
         field[n, m] *= -1
-    elif dE==0:
-        if np.exp(-(E/(M*N))*beta) > np.random.rand():
-            field[n, m] *= -1
+    #elif dE==0:
+    #    if np.exp(-(E/(M*N))*beta) > np.random.rand():
+    #        field[n, m] *= -1
     elif np.exp(-dE*beta) > np.random.rand():
         field[n, m] *= -1
     return E
