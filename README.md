@@ -27,3 +27,7 @@ weighted_network_doucle_plots_v2.py as above but with density
 correlation_lenght.py plots and fits the correlation in a specific temperature and fits it to an exponential to find the correlation lenght (work in progress)
 
 correlation_lenght sweeps speak for themselves
+
+# Mic todo
+- Critical temperature from file .csv
+- Ottimization of clustering_sweep --> creare funzioni dei parametri di network senza usare quelle networkx

@@ -158,6 +158,9 @@ def main():
             #iterate some steps
             A, final_spins = step(A_dense, equilibrium_spins, beta[i], n)
             A_clust = clustering(A, final_spins)
+
+            #qui sta il problema 
+            
             G2 = nx.from_scipy_sparse_array(sparse.csr_matrix(A_clust)) #G2 only hasa the relevant edges
         
             ne = nx.number_of_edges(G2)
