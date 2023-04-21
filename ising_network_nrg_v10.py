@@ -14,12 +14,12 @@ M = 10                          #lattice size MxN
 N = 10
 steps = 30000                      #number of evolution steps per given temperature
 steps_to_eq = 20000                   #steps until equilibrium is reached
-repeat = 1                     #number of trials per temperature to average over
+repeat = 10                     #number of trials per temperature to average over
 
 Tc = (2*abs(J))/np.log(1+np.sqrt(2))         #Onsager critical temperature for square lattice
 print(Tc)
 
-T = np.linspace(1, 10, 30)   #temperature range
+T = np.linspace(2.1, 2.7, 50)   #temperature range
 
 ones = np.ones(len(T))
 beta = ones/(T)
