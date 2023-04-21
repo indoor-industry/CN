@@ -10,17 +10,17 @@ from numba import jit
 time_start = time.perf_counter()
 
 k_b = 8.617333262e-5
-lattice_type = 'hexagonal'            #write square, triangular or hexagonal
-J = -1                        #spin coupling constant
+lattice_type = 'square'            #write square, triangular or hexagonal
+J = 1                        #spin coupling constant
 B = 0                     #external magnetic field
-M = 10                          #lattice size MxN
-N = 10
-steps = 1000                      #number of evolution steps per given temperature
+M = 20                          #lattice size MxN
+N = 20
+steps = 20000                      #number of evolution steps per given temperature
 
 Tc = (2*abs(J))/np.log(1+np.sqrt(2))         #Onsager critical temperature for square lattice
 print(Tc)
 
-T = 1*Tc
+T = 10*Tc
 
 #function creates lattice
 def lattice(M, N):
@@ -72,22 +72,16 @@ def step(A_dense, beta, num):
         nnsum = np.sum(A,axis=1)
 
         #What decides the flip is
-        dE = -4*J*np.multiply(nnsum, spinlist) + 2*B*spinlist    #change in energy
-        E = J*sum(np.multiply(nnsum, spinlist)) - B*sum(spinlist)   #total energy    
+        dE = 2*J*np.multiply(nnsum, spinlist) + 2*B*spinlist    #change in energy  
         M = np.sum(spinlist)
     
         #change spins if energetically favourable or according to thermal noise
-        for offset in range(2):                 #offset to avoid interfering with neighboring spins while rastering
-            for i in range(offset,len(dE),2):
-                if dE[i]<0:
-                    spinlist[i] *= -1
-                elif dE[i]==0:
-                    if np.exp(-(E/num)*beta) > np.random.rand():
-                        spinlist[i] *= -1
-                    else:
-                        continue
-                elif np.exp(-dE[i]*beta) > np.random.rand():     #thermal noise
-                    spinlist[i] *= -1
+        i = np.random.randint(num)
+
+        if dE[i]<=0:
+            spinlist[i] *= -1
+        elif np.exp(-dE[i]*beta) > np.random.rand():     #thermal noise
+            spinlist[i] *= -1
         
         for atom in range(num):
             for neighbour in range(num):

@@ -6,19 +6,19 @@ from numba import jit
 
 time_start = time.perf_counter()
 
-lattice_type = 'hexagonal'              #write square, triangular or hexagonal
-J = -1                             #spin coupling constant
+lattice_type = 'square'              #write square, triangular or hexagonal
+J = 1                             #spin coupling constant
 B = 0                                #external magnetic field
-M = 40                               #lattice size MxN
-N = 40
-steps = 100                         #number of evolution steps per given temperature
+M = 10                               #lattice size MxN
+N = 10
+steps = 20000                         #number of evolution steps per given temperature
 max_r = 15
-repeat = 10
+repeat = 1
 
 Tc = (2*abs(J))/np.log(1+np.sqrt(2))         #Onsager critical temperature for square lattice
 print(Tc)
 
-T = 0.2*Tc
+T = np.linspace(1.5, 3, 5)   #temperature range
 
 #function creates lattice
 def lattice(M, N):
@@ -49,9 +49,7 @@ def distances(num, spl):
     return lenghts
 
 @jit(nopython=True)
-def step(A_dense, beta, num, nn_number, lenghts):
-
-    spinlist = np.random.choice(np.array([1, -1]), num)   #create random spins for nodes
+def step(A_dense, beta, num, nn_number, lenghts, spinlist):
     
     corr_repeats = np.empty((repeat, max_r))
     corr_r = np.zeros(max_r)
@@ -71,21 +69,14 @@ def step(A_dense, beta, num, nn_number, lenghts):
             nnsum = np.sum(A,axis=1)
 
             #What decides the flip is
-            dE = -4*J*np.multiply(nnsum, spinlist) + 2*B*spinlist    #change in energy
-            E = J*sum(np.multiply(nnsum, spinlist)) - B*sum(spinlist)   #total energy
+            dE = 2*J*np.multiply(nnsum, spinlist) + 2*B*spinlist    #change in energy
 
-            #change spins if energetically favourable or according to thermal noise
-            for offset in range(2):                 #offset to avoid interfering with neighboring spins while rastering
-                for i in range(offset,len(dE),2):
-                    if dE[i]<0:
-                        spinlist[i] *= -1
-                    elif dE[i]==0:
-                        if np.exp(-(E/num)*beta) > np.random.rand():
-                            spinlist[i] *= -1
-                        else:
-                            continue
-                    elif np.exp(-dE[i]*beta) > np.random.rand():     #thermal noise
-                        spinlist[i] *= -1
+            i = np.random.randint(num)
+
+            if dE[i]<=0:
+                spinlist[i] *= -1
+            elif np.exp(-dE[i]*beta) > np.random.rand():     #thermal noise
+                spinlist[i] *= -1
 
             l+=1
 
@@ -131,12 +122,19 @@ def main():
 
     lenghts = distances(n, spl)
     
-    #iterate steps and sweep trough beta
-    corr_r, r = step(A_dense, 1/T, n, nn_number, lenghts)
+    rand_spin = np.random.choice(np.array([1, -1]), n)   #create random spins for nodes
+    for j in range(len(T)):
 
-    plt.scatter(r, corr_r)
+        spinlist = np.copy(rand_spin)
+
+        #iterate steps and sweep trough beta
+        corr_r, r = step(A_dense, 1/T[j], n, nn_number, lenghts, spinlist)
+
+        plt.plot(r, corr_r, label=f'T={T[j]}')
+    
     plt.xlabel('node distance r')
     plt.ylabel('<$\sigma(i)\sigma(i+r)$>')
+    plt.legend()
     plt.title('J={}, B={}, ev_steps={}, T={}, size={}x{}'.format(J, B, steps, T, M, N))
 
     time_elapsed = (time.perf_counter() - time_start)

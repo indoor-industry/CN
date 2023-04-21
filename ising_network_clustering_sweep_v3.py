@@ -7,17 +7,18 @@ from numba import jit
 
 time_start = time.perf_counter()
 
-lattice_type = 'hexagonal'            #write square, triangular or hexagonal
+lattice_type = 'square'            #write square, triangular or hexagonal
 M = 20
 N = 20
-J = -1
+J = 1
 B = 0
-steps = 1000
+steps = 21000
+steps_to_eq = 20000
 
 Tc = (2*abs(J))/np.log(1+np.sqrt(2))         #Onsager critical temperature for square lattice
 print(Tc)
 
-T = np.linspace(0.01*Tc, 0.4*Tc, 50)
+T = np.linspace(1, 4, 30)
 ones = np.ones(len(T))
 beta = ones/T
 
@@ -78,48 +79,39 @@ def colormap(G):
 #function for single step
 @jit(nopython=True)
 def step(A_dense, spinlist, beta, num):
-
-    l=0
-    while l <= steps:
     
-        A = np.copy(A_dense)
+    A = np.copy(A_dense)
 
-        for m in range(len(spinlist)):
-            for n in range(len(spinlist)):
-                if A[m,n]==1:
-                    A[m,n]=spinlist[n] #assigned to every element in the adj matrix the corresponding node spin value
+    for m in range(len(spinlist)):
+        for n in range(len(spinlist)):
+            if A[m,n]==1:
+                A[m,n]=spinlist[n] #assigned to every element in the adj matrix the corresponding node spin value
 
-        #sum over rows to get total spin of neighbouring atoms for each atom
-        nnsum = np.sum(A,axis=1)
+    #sum over rows to get total spin of neighbouring atoms for each atom
+    nnsum = np.sum(A,axis=1)
     
-        #What decides the flip is
-        dE=-4*J*np.multiply(nnsum, spinlist) + 2*B*spinlist
-        E = J*sum(np.multiply(nnsum, spinlist)) - B*sum(spinlist)   #total energy
+    #What decides the flip is
+    dE= 2*J*np.multiply(nnsum, spinlist) + 2*B*spinlist
 
-        #Now flip every spin whose dE<0
-        for offset in range(2):
-            for i in range(offset,len(dE),2):
-                if dE[i]<0:
-                    spinlist[i] *= -1
-                elif dE[i]==0:
-                    if np.exp(-(E/num)*beta) > np.random.rand():
-                        spinlist[i] *= -1
-                    else:
-                        continue
-                elif np.exp(-dE[i]*beta) > np.random.rand():
-                    spinlist[i] *= -1
+    #Now flip every spin whose dE<0
 
-        A = np.copy(A_dense)                        #redo this so that adjacency matrix and spins are on the same step
+    i = np.random.randint(num)
 
-        for m in range(len(spinlist)):
-            for n in range(len(spinlist)):
-                if A[m,n]==1:
-                    A[m,n]=spinlist[n] #assigned to every element in the adj matrix the corresponding node spin value
+    if dE[i]<0:
+        spinlist[i] *= -1        
+    elif np.exp(-dE[i]*beta) > np.random.rand():
+        spinlist[i] *= -1
 
-        l += 1
+    A = np.copy(A_dense)                        #redo this so that adjacency matrix and spins are on the same step
+
+    for m in range(len(spinlist)):
+        for n in range(len(spinlist)):
+            if A[m,n]==1:
+                A[m,n]=spinlist[n] #assigned to every element in the adj matrix the corresponding node spin value
 
     return A, spinlist
 
+@jit(nopython=True)
 def clustering(A, s):
     for m in range(len(s)):
         for n in range(len(s)):
@@ -145,34 +137,49 @@ def main():
     Adj = nx.adjacency_matrix(G, nodelist=None, dtype=None, weight='weight')
     A_dense = Adj.todense()
 
-    diameter_of_giant_component_T = []
-    density_T = []
-    btw_T = []
-    cc_T = []
+    diameter_of_giant_component_T = np.empty(len(T))
+    density_T = np.empty(len(T))
+    btw_T = np.empty(len(T))
+    cc_T = np.empty(len(T))
+
     for i in range(len(T)):
 
         spinlist = np.copy(rand_spin)
 
-        #iterate some steps
-        A, s = step(A_dense, spinlist, beta[i], n)
-        A_clust = clustering(A, s)
-        G2 = nx.from_scipy_sparse_array(sparse.csr_matrix(A_clust)) #G2 only hasa the relevant edges
-        
-        ne = nx.number_of_edges(G2)
-        density = nx.density(G2)
-        cc = nx.number_connected_components(G2)
-        
-        #calculate the average betweennes centrality of nodes
-        full_btw = nx.betweenness_centrality(G2)
-        mean_btw = mean(full_btw.values())
+        for l in range(steps_to_eq):
+            A, equilibrium_spins = step(A_dense, spinlist, beta[i], n)
 
-        Gcc = sorted(nx.connected_components(G2), key=len, reverse=True)
-        giant = G.subgraph(Gcc[0])
-        diameter_of_giant_component_T.append(nx.diameter(giant))
+        diameter_of_giant_component_time = np.empty(steps-steps_to_eq)
+        density_time = np.empty(steps-steps_to_eq)
+        btw_time = np.empty(steps-steps_to_eq)
+        cc_time = np.empty(steps-steps_to_eq)
+        for j in range(steps-steps_to_eq):
 
-        density_T.append(density)
-        btw_T.append(mean_btw)
-        cc_T.append(cc)
+            #iterate some steps
+            A, final_spins = step(A_dense, equilibrium_spins, beta[i], n)
+            A_clust = clustering(A, final_spins)
+            G2 = nx.from_scipy_sparse_array(sparse.csr_matrix(A_clust)) #G2 only hasa the relevant edges
+        
+            ne = nx.number_of_edges(G2)
+            density = nx.density(G2)
+            cc = nx.number_connected_components(G2)
+        
+            #calculate the average betweennes centrality of nodes
+            full_btw = nx.betweenness_centrality(G2)
+            mean_btw = mean(full_btw.values())
+
+            Gcc = sorted(nx.connected_components(G2), key=len, reverse=True)
+            giant = G.subgraph(Gcc[0])
+            
+            diameter_of_giant_component_time[j] = nx.diameter(giant)
+            density_time[j] = density
+            btw_time[j] = mean_btw
+            cc_time[j] = cc
+
+        diameter_of_giant_component_T[i] = mean(diameter_of_giant_component_time)
+        density_T[i] = mean(density_time)
+        btw_T[i] = mean(btw_time)
+        cc_T[i] = mean(cc_time)
 
         print(i)
 
