@@ -8,8 +8,8 @@ from numba import jit
 time_start = time.perf_counter()
 
 lattice_type = 'square'            #write square, triangular or hexagonal
-M = 20
-N = 20
+M = 10
+N = 10
 J = 1
 B = 0
 steps = 21000

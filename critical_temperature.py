@@ -1,18 +1,38 @@
 import numpy as np
 import matplotlib.pyplot as plt
 
-M_10 = np.genfromtxt('data/M_10x10_square_B=0.csv', delimiter=',', skip_header=0)
-M_20 = np.genfromtxt('data/M_20x20_square_B=0.csv', delimiter=',', skip_header=0)
-#etc
+J=1
+range_Tc = 100 #range nel quale è stato preso il campione
+T_max = 2.7
+T_min = 2
+Tc = (2*abs(J))/np.log(1+np.sqrt(2))
+Error_Tc = (T_max - T_min) / 2
 
-T = np.genfromtxt('data/T_5x5_square_B=0.csv', delimiter=',', skip_header=0)
+cv_data = np.genfromtxt('data/cv_10x10_square_B=0.csv', delimiter=',', skip_header=0)
+xi_data = np.genfromtxt('data/xi_10x10_square_B=0.csv', delimiter=',', skip_header=0)
+T_data = np.genfromtxt('data/T_10x10_square_B=0.csv', delimiter=',', skip_header=0)
 
-plt.scatter(T, M_20)
-plt.show()
+
+
+Tc_from_cv = T_data[cv_data.argmax()]
+Tc_from_xi = T_data[xi_data.argmax()]
+
+#print(Tc_from_cv)
+#print(Tc_from_xi)
+
+Tc_mean = (Tc_from_cv + Tc_from_xi) / 2
+print(Tc)
+print(str(Tc_mean) + ' +/- ' + str(Error_Tc))
+print(Tc_mean / Tc)
+
+
+
+#plt.scatter(T_data, cv_data)
+#plt.show()
 
 #find max of chi
 #such T is T0 for various lenghts
 
 #fit this to find critical temperature and exponent
-def T0_L(L, T_c, x_0, ni):
-    return T_c*(1+x_0*L**(-1/ni))
+#def T0_L(L, T_c, x_0, ni):
+#    return T_c*(1+x_0*L**(-1/ni))
