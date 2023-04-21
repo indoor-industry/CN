@@ -1,6 +1,6 @@
 # Monte Carlo simulation of the 2D Ising model
 
-Using a variation Metropolis-Hastings algorithm in a complex network setting
+Using the Metropolis-Hastings algorithm in a complex network setting
 The code works for square, triangular and hexagonal lattice types and also for a random Erdos-Renyi graph (work in progress)
 
 ising_v3.py gives a visual simulation (or energy plot) of a 2d grid iding model to test for consistency tests of the other scripts

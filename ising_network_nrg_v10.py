@@ -19,7 +19,7 @@ repeat = 1                     #number of trials per temperature to average over
 Tc = (2*abs(J))/np.log(1+np.sqrt(2))         #Onsager critical temperature for square lattice
 print(Tc)
 
-T = np.linspace(1, 4, 30)   #temperature range
+T = np.linspace(1, 10, 30)   #temperature range
 
 ones = np.ones(len(T))
 beta = ones/(T)
