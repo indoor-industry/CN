@@ -7,19 +7,21 @@ from numba import jit
 time_start = time.perf_counter()
 
 k_b = 8.617333262e-5
-lattice_type = 'square'            #write square, triangular or hexagonal, ER
+lattice_type = 'hexagonal'            #write square, triangular or hexagonal, ER
 J = 1                       #spin coupling constant
 B = 0                       #external magnetic field
-M = 10                          #lattice size MxN
+M = 10                         #lattice size MxN
 N = 10
-steps = 30000                      #number of evolution steps per given temperature
-steps_to_eq = 20000                   #steps until equilibrium is reached
-repeat = 10                     #number of trials per temperature to average over
+steps = 20000                      #number of evolution steps per given temperature
+steps_to_eq = 13000                 #steps until equilibrium is reached
+repeat = 1                 #number of trials per temperature to average over
 
 Tc = (2*abs(J))/np.log(1+np.sqrt(2))         #Onsager critical temperature for square lattice
-print(Tc)
+Tc_h = 2/np.log(2 + np.sqrt(3))             #Critical temperature of hexagonal lattic  at J = 1
+Tc_t = 4 / np.sqrt(3)                       #Critical temperature of triangular lattice at J = 1 
+print(Tc_h)
 
-T = np.linspace(2, 2.7, 100)   #temperature range
+T = np.linspace(0.5*Tc_h, 1.5*Tc_h, 100)   #temperature range
 
 ones = np.ones(len(T))
 beta = ones/(T)
