@@ -11,7 +11,7 @@ lattice_type = 'hexagonal'            #write square, triangular or hexagonal
 M = 20
 N = 20
 J = 1
-steps = 100
+steps = 20000
 
 Tc = (2*abs(J))/np.log(1+np.sqrt(2))         #Onsager critical temperature for square lattice
 Tc_h = 2/np.log(2 + np.sqrt(3))             #Critical temperature of hexagonal lattic  at J = 1
@@ -62,8 +62,8 @@ def spinass(G, spinlist):
 #function for single step
 @jit(nopython=True)
 def step(A_dense, spinlist, beta, magfield, num):
-    l=0
-    while l <= steps:
+
+    for l in range(steps):
     
         A = np.copy(A_dense)
 
@@ -80,17 +80,13 @@ def step(A_dense, spinlist, beta, magfield, num):
         E = J*sum(np.multiply(nnsum, spinlist)) - magfield*sum(spinlist)   #total energy
 
         #Now flip every spin whose dE<0
-        for offset in range(2):
-            for i in range(offset,len(dE),2):
-                if dE[i]<0:
-                    spinlist[i] *= -1
-                elif dE[i]==0:
-                    if np.exp(-(E/num)*beta) > np.random.rand():
-                        spinlist[i] *= -1
-                    else:
-                        continue
-                elif np.exp(-dE[i]*beta) > np.random.rand():
-                    spinlist[i] *= -1
+
+        i = np.random.randint(num)
+
+        if dE[i]<0:
+            spinlist[i] *= -1
+        elif np.exp(-dE[i]*beta) > np.random.rand():
+            spinlist[i] *= -1
 
         A = np.copy(A_dense)                        #redo this so that adjacency matrix and spins are on the same step
 
@@ -98,8 +94,6 @@ def step(A_dense, spinlist, beta, magfield, num):
             for n in range(len(spinlist)):
                 if A[m,n]==1:
                     A[m,n]=spinlist[n] #assigned to every element in the adj matrix the corresponding node spin value
-
-        l += 1
 
     return A, spinlist
 

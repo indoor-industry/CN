@@ -12,7 +12,7 @@ M = 10
 N = 10
 J = 1
 B = 0
-steps = 21000
+steps = 30000
 steps_to_eq = 20000
 
 Tc = (2*abs(J))/np.log(1+np.sqrt(2))         #Onsager critical temperature for square lattice
@@ -121,6 +121,7 @@ def clustering(A, s):
                 A[m,n] = 0          #now matrix A represents which adjacent atoms have the same spin value
     return A
 
+#@profile
 def main():
 
     def mean(list):
@@ -168,35 +169,35 @@ def main():
             cc = nx.number_connected_components(G2)
         
             #calculate the average betweennes centrality of nodes
-            full_btw = nx.betweenness_centrality(G2)
-            mean_btw = mean(full_btw.values())
+            #full_btw = nx.betweenness_centrality(G2)
+            #mean_btw = mean(full_btw.values())
 
-            Gcc = sorted(nx.connected_components(G2), key=len, reverse=True)
-            giant = G.subgraph(Gcc[0])
+            #Gcc = sorted(nx.connected_components(G2), key=len, reverse=True)
+            #giant = G.subgraph(Gcc[0])
             
-            diameter_of_giant_component_time[j] = nx.diameter(giant)
+            #diameter_of_giant_component_time[j] = nx.diameter(giant)
             density_time[j] = density
-            btw_time[j] = mean_btw
+            #btw_time[j] = mean_btw
             cc_time[j] = cc
 
-        diameter_of_giant_component_T[i] = mean(diameter_of_giant_component_time)
+        #diameter_of_giant_component_T[i] = mean(diameter_of_giant_component_time)
         density_T[i] = mean(density_time)
-        btw_T[i] = mean(btw_time)
+        #btw_T[i] = mean(btw_time)
         cc_T[i] = mean(cc_time)
 
         print(i)
 
     fig = plt.figure()
-    ax1 = fig.add_subplot(2, 2, 1)
-    ax2 = fig.add_subplot(2, 2, 2)
-    ax3 = fig.add_subplot(2, 2, 3)
-    ax4 = fig.add_subplot(2, 2, 4)
-    ax1.scatter(T/Tc, diameter_of_giant_component_T, color = 'orange')
-    ax1.set_ylabel('diam. of giant component(T/Tc)')
+    #ax1 = fig.add_subplot(2, 2, 1)
+    ax2 = fig.add_subplot(2, 1, 1)
+    #ax3 = fig.add_subplot(2, 2, 3)
+    ax4 = fig.add_subplot(2, 1, 2)
+    #ax1.scatter(T/Tc, diameter_of_giant_component_T, color = 'orange')
+    #ax1.set_ylabel('diam. of giant component(T/Tc)')
     ax2.scatter(T/Tc, density_T, color = 'blue')
     ax2.set_ylabel('density(T/Tc)')
-    ax3.scatter(T/Tc, btw_T, color = 'green')
-    ax3.set_ylabel('|betweenness centrality|(T/Tc)')
+    #ax3.scatter(T/Tc, btw_T, color = 'green')
+    #ax3.set_ylabel('|betweenness centrality|(T/Tc)')
     ax4.scatter(T/Tc, cc_T, color = 'black')
     ax4.set_ylabel('connected components(T/Tc)')
     fig.suptitle('{} {}x{}  B={} J={}, ev_steps={}'.format(lattice_type, M, N, B, J, steps))
