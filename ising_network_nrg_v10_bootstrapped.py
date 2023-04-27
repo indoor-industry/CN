@@ -7,15 +7,15 @@ from numba import jit
 time_start = time.perf_counter()
 
 k_b = 8.617333262e-5
-lattice_type = 'square'            #write square, triangular or hexagonal, ER
+lattice_type = 'hexagonal'            #write square, triangular or hexagonal, ER
 J = 1                       #spin coupling constant
 B = 0                       #external magnetic field
 M = 10                          #lattice size MxN
 N = 10
-steps = 30000                      #number of evolution steps per given temperature
-steps_to_eq = 20000                   #steps until equilibrium is reached
+steps = 20000                      #number of evolution steps per given temperature
+steps_to_eq = 15000                   #steps until equilibrium is reached
 repeat = 1                     #number of trials per temperature to average over
-nbstrap = 1000
+nbstrap = 100
 
 Tc = (2*abs(J))/np.log(1+np.sqrt(2))         #Onsager critical temperature for square lattice
 print(Tc)
@@ -34,7 +34,7 @@ def lattice(M, N):
     elif lattice_type == 'square':
         lattice = nx.grid_2d_graph(M, N, periodic=True, create_using=None)
     elif lattice_type == 'ER':
-        lattice = nx.erdos_renyi_graph(M*N, 0.01, seed=None, directed=False)
+        lattice = nx.erdos_renyi_graph(M*N, 0.04, seed=None, directed=False)
     return lattice
 
 #count number of sites in lattice
