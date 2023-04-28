@@ -14,16 +14,19 @@ J = 1
 steps = 20000
 
 Tc = (2*abs(J))/np.log(1+np.sqrt(2))         #Onsager critical temperature for square lattice
+Tc_h = 2/np.log(2 + np.sqrt(3))             #Critical temperature of hexagonal lattic  at J = 1
+Tc_t = 4 / np.sqrt(3)                       #Critical temperature of triangular lattice at J = 1 
+print(Tc_h)
 print(Tc)
 
-T_sample = 20
+T_sample = 5
 B_sample = 5
 
-T_min = 0.01*Tc                        #min temperature to explore
-T_max = 0.4*Tc                    #max temperature to explore
+T_min = 0.5*Tc_h                        #min temperature to explore
+T_max = 1.5*Tc_h                    #max temperature to explore
 
-B_min = -0.5                         #min magnetic field to explore
-B_max = 0.5                          #max magnetic field to explore
+B_min = 0                         #min magnetic field to explore
+B_max = 2                          #max magnetic field to explore
 
 T = np.linspace(T_min, T_max, T_sample)   #temperature range to explore
 B = np.linspace(B_min, B_max, B_sample)   #External magnetic field range to explore
@@ -144,7 +147,7 @@ def main():
     time_elapsed = (time.perf_counter() - time_start)
     print ("checkpoint 1 %5.1f secs" % (time_elapsed))
 
-    ext = [T_min/Tc, T_max/Tc, B_min, B_max]
+    ext = [T_min/Tc_h, T_max/Tc_h, B_min, B_max]
 
     fig = plt.figure(figsize=(15, 15))
     ax1 = fig.add_subplot(2, 2, 1)
