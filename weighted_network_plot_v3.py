@@ -85,7 +85,7 @@ def step(A_dense, beta, num):
         
         for atom in range(num):
             for neighbour in range(num):
-                corr_matrix[atom][neighbour]+=(spinlist[atom]*spinlist[neighbour]) - (M/num)**2
+                corr_matrix[atom][neighbour]+=(spinlist[atom]*spinlist[neighbour])# - (M/num)**2
 
     norm_corr_matrix = corr_matrix/steps
     
