@@ -10,17 +10,26 @@ k_b = 8.617333262e-5
 lattice_type = 'hexagonal'            #write square, triangular or hexagonal, ER
 J = 1                       #spin coupling constant
 B = 0                       #external magnetic field
-M = 30                          #lattice size MxN
-N = 30
+M = 24                          #lattice size MxN
+N = 24
 steps = 20000                      #number of evolution steps per given temperature
 steps_to_eq = 15000                   #steps until equilibrium is reached
 repeat = 1                     #number of trials per temperature to average over
 nbstrap = 100
 
-Tc = (2*abs(J))/np.log(1+np.sqrt(2))         #Onsager critical temperature for square lattice
-print(Tc)
+Tc = (2*abs(J))/np.log(1+np.sqrt(2))        #Critical temperature
+Tc_h = 2/np.log(2 + np.sqrt(3))             #Critical temperature of hexagonal lattic  at J = 1
+Tc_t = 4 / np.sqrt(3)                       #Critical temperature of triangular lattice at J = 1 
 
-T = np.linspace(0.1, 3, 20)   #temperature range
+if lattice_type == "square":
+    T = np.linspace(0.5*Tc, 1.5*Tc, 10) 
+elif lattice_type == "hexagonal":
+    T = np.linspace(0.5*Tc_h, 1.5*Tc_h, 10) 
+    Tc = Tc_h
+elif lattice_type == "triangular":
+    T = np.linspace(0.5*Tc_t, 1.5*Tc_t, 10) 
+    Tc = Tc_t
+else: print("Errore!")
 
 ones = np.ones(len(T))
 beta = ones/(T)
