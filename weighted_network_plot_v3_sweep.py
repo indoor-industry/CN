@@ -13,14 +13,14 @@ k_b = 8.617333262e-5
 lattice_type = 'square'            #write square, triangular or hexagonal
 J = 1                        #spin coupling constant
 B = 0                     #external magnetic field
-M = 20                          #lattice size MxN
-N = 20
+M = 5                          #lattice size MxN
+N = 5
 steps = 20000                      #number of evolution steps per given temperature
 
 Tc = (2*abs(J))/np.log(1+np.sqrt(2))         #Onsager critical temperature for square lattice
 print(Tc)
 
-T = 10*Tc
+T = np.linspace(1, 3, 20)
 
 #function creates lattice
 def lattice(M, N):
@@ -72,12 +72,10 @@ def step(A_dense, beta, num):
         nnsum = np.sum(A,axis=1)
 
         #What decides the flip is
-        dE = 2*J*np.multiply(nnsum, spinlist) + 2*B*spinlist    #change in energy  
-        M = np.sum(spinlist)
+        dE = 2*J*np.multiply(nnsum, spinlist) + 2*B*spinlist    #change in energy
     
         #change spins if energetically favourable or according to thermal noise
         i = np.random.randint(num)
-
         if dE[i]<=0:
             spinlist[i] *= -1
         elif np.exp(-dE[i]*beta) > np.random.rand():     #thermal noise
@@ -85,21 +83,28 @@ def step(A_dense, beta, num):
         
         for atom in range(num):
             for neighbour in range(num):
-                corr_matrix[atom][neighbour]+=(spinlist[atom]*spinlist[neighbour]) - (M/num)**2
+                corr_matrix[atom][neighbour]+=(spinlist[atom]*spinlist[neighbour])# - (M/num)**2
 
-    norm_corr_matrix = corr_matrix/steps
-    
-    di = []
-    for a in range(num):
-        den=0
-        for q in range(num):
-            if q != a:
-                den += norm_corr_matrix[a][q]
-        di.append(den/(num-1))
-    
-    density = sum(di)/num
+        norm_corr_matrix = corr_matrix/steps
 
-    return norm_corr_matrix, spinlist, density
+        #ei2 = np.empty(num)       #sum over weights squared for each node (labeled j) to any other node 
+        #ei = np.empty(num)        #sum over weights for each node (labeled j) to any other node 
+        #for v in range(num):
+        #    sum_j_eij_squared=0
+        #    sum_j_eij=0
+        #    for r in range(num):        #check if key of edge related node j to any other 
+        #        if r != v:
+        #            sum_j_eij_squared += norm_corr_matrix[v][r]**2
+        #            sum_j_eij += norm_corr_matrix[v][r]
+        #    ei2[v] = sum_j_eij_squared
+        #    ei[v] = sum_j_eij
+
+        #can also be done like this
+        ei2 = np.sum(corr_matrix**2, axis=0)-1
+        ei = np.sum(np.abs(corr_matrix), axis=0)-1
+        #disparity = ei2/ei**2
+
+    return ei, ei2, norm_corr_matrix
 
 
 def main():
@@ -115,34 +120,63 @@ def main():
     Adj = nx.adjacency_matrix(G, nodelist=None, dtype=None, weight='weight')
     A_dense = Adj.todense()
 
-    #iterate steps and sweep trough beta
-    corr_matrix, spins, density = step(A_dense, 1/T, n)
+    disparity = np.empty(len(T))
+    density = np.empty(len(T))
+    C = np.empty(len(T))
+    D = np.empty(len(T))
+    for a in range(len(T)):
 
-    print(density)
+        #iterate steps and sweep trough beta
+        ei, ei2, corr_matrix = step(A_dense, 1/T[a], n)
 
-    G_corr = nx.create_empty_copy(G, with_data=True)
+        G_corr = nx.create_empty_copy(G, with_data=True)
+        for i in range(n):
+            for j in range(n):
+                if j<i:
+                    G_corr.add_edge(i, j, weight=corr_matrix[i][j])
 
-    pos=0
-    neg=0
-    for i in range(n):
-        for j in range(n):
-            if j<i:
-                G_corr.add_edge(i, j, weight=corr_matrix[i][j])
-                if corr_matrix[i][j]>0:
-                    pos += 1
-                else:
-                    neg += 1
+        disparity_i = ei2/ei**2
+        disparity[a] = sum(disparity_i)/n
+        
+        density_i = ei/(n-1)
+        density[a] = sum(density_i)/n
+        
+        clust_nominator = 0
+        clust_denominator = 0
+        for i in range(n):
+            for j in range(n):
+                for k in range(n):
+                    if i!=j and j!=k and i!=k:
+                        clust_nominator += corr_matrix[i][j]*corr_matrix[j][k]*corr_matrix[k][i]
+                        clust_denominator += corr_matrix[i][k]*corr_matrix[j][k]
+        clust_coefficient = clust_nominator/clust_denominator
+        C[a] = clust_coefficient
+                
+        diameter = nx.diameter(G, e=None, usebounds=False, weight='weight')
+        D[a] = diameter
 
-    print(pos)
-    print(neg)
-    print(pos+neg)
 
-    w = nx.get_edge_attributes(G_corr, 'weight')
+        print(a)
 
-    color = colormap(spins, n)
-    nx.draw_networkx(G_corr, node_size=10, node_color=color, with_labels=False, edge_cmap=mpl.colormaps['seismic'], edge_vmin=-1, edge_vmax=1, edge_color=list(w.values()), width=0.1)#np.exp(abs(np.array(list(w.values())))))
-    plt.title('{} T={}'.format(lattice_type, T))
-    plt.legend(title='red={}, blue={}, total={}'.format(pos, neg, pos+neg), loc='upper left')
+    fig = plt.figure()
+    ax1 = fig.add_subplot(2, 2, 1)
+    ax2 = fig.add_subplot(2, 2, 2)
+    ax3 = fig.add_subplot(2, 2, 3)
+    ax4 = fig.add_subplot(2, 2, 4)
+    ax1.scatter(T/Tc, density, color = 'orange')
+    ax1.set_ylabel('density')
+    ax1.set_xlabel('T/Tc')
+    ax2.scatter(T/Tc, disparity, color = 'blue')
+    ax2.set_ylabel('disparity')
+    ax2.set_xlabel('T/Tc')
+    ax3.scatter(T/Tc, C, color = 'green')
+    ax3.set_ylabel('clustering coefficient')
+    ax3.set_xlabel('T/Tc')
+    ax4.scatter(T/Tc, D, color = 'black')
+    ax4.set_ylabel('diameter')
+    ax4.set_xlabel('T/Tc')
+    fig.suptitle('{} no.atoms={}  B={} J={}, ev_steps={}'.format(lattice_type, n, B, J, steps))
+    fig.tight_layout()
 
     time_elapsed = (time.perf_counter() - time_start)
     print ("checkpoint %5.1f secs" % (time_elapsed))
