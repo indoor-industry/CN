@@ -15,6 +15,7 @@ B = 0                     #external magnetic field
 M = 10                          #lattice size MxN
 N = 10
 steps = 20000                      #number of evolution steps per given temperature
+repeat = 10
 
 Tc = (2*abs(J))/np.log(1+np.sqrt(2))        #Critical temperature
 Tc_h = 2/np.log(2 + np.sqrt(3))             #Critical temperature of hexagonal lattic  at J = 1
@@ -104,6 +105,9 @@ def step(A_dense, beta, num, rand_spin):
 
 def main():
 
+    def mean(list):
+        return sum(list)/len(list)
+
     #create lattice
     G, nn_number = lattice(M, N)
     #convert node labels to integers
@@ -125,58 +129,73 @@ def main():
     avg_btw = np.empty(len(T))
     for a in range(len(T)):
 
-        #iterate steps and sweep trough beta
-        ei, ei2, corr_matrix = step(A_dense, 1/T[a], n, rand_spin)
+        disparity_rep = np.empty(repeat)
+        density_rep = np.empty(repeat)
+        D_rep = np.empty(repeat)
+        C_rep = np.empty(repeat)
+        avg_btw_rep = np.empty(repeat)
+        avg_dist_rep = np.empty(repeat)
+        for rep in range(repeat):
 
-        #create complete (absolute value of) correlation-weighted network
-        G_corr = nx.create_empty_copy(G, with_data=True)
-        for i in range(n):
-            for j in range(n):
-                if j<i:
-                    G_corr.add_edge(i, j, weight=abs(corr_matrix[i][j]))
+            #iterate steps and sweep trough beta
+            ei, ei2, corr_matrix = step(A_dense, 1/T[a], n, rand_spin)
 
-        #calculate disparity as of Sundhar
-        disparity_i = ei2/ei**2
-        disparity[a] = sum(disparity_i)/n
+            #create complete (absolute value of) correlation-weighted network
+            G_corr = nx.create_empty_copy(G, with_data=True)
+            for i in range(n):
+                for j in range(n):
+                    if j<i:
+                        G_corr.add_edge(i, j, weight=abs(corr_matrix[i][j]))
+
+            #calculate disparity as of Sundhar
+            disparity_i = ei2/ei**2
+            disparity_rep[rep] = sum(disparity_i)/n
         
-        #calculate density
-        density_i = ei/(n-1)
-        density[a] = sum(density_i)/n
+            #calculate density
+            density_i = ei/(n-1)
+            density_rep[rep] = sum(density_i)/n
         
-        #calculate clustering coefficient
-        clust_nominator = 0
-        clust_denominator = 0
-        for i in range(n):
-            for j in range(n):
-                for k in range(n):
-                    if i!=j and j!=k and i!=k:
-                        clust_nominator += corr_matrix[i][j]*corr_matrix[j][k]*corr_matrix[k][i]
-                        clust_denominator += corr_matrix[i][k]*corr_matrix[j][k]
-        clust_coefficient = clust_nominator/clust_denominator
-        C[a] = clust_coefficient
+            #calculate clustering coefficient
+            clust_nominator = 0
+            clust_denominator = 0
+            for i in range(n):
+                for j in range(n):
+                    for k in range(n):
+                        if i!=j and j!=k and i!=k:
+                            clust_nominator += corr_matrix[i][j]*corr_matrix[j][k]*corr_matrix[k][i]
+                            clust_denominator += corr_matrix[i][k]*corr_matrix[j][k]
+            clust_coefficient = clust_nominator/clust_denominator
+            C_rep[rep] = clust_coefficient
         
-        #calculate eccentricity and average over nodes, we call this average geodesic distance
-        ecc = nx.eccentricity(G_corr, v=None, sp=None, weight='weight')
-        avg_dist[a] = 1/(sum(ecc.values())/n)
+            #calculate eccentricity and average over nodes, we call this average geodesic distance
+            ecc = nx.eccentricity(G_corr, v=None, sp=None, weight='weight')
+            avg_dist_rep[rep] = 1/(sum(ecc.values())/n)
 
-        #calculate diameter (maximum eccentricity)
-        #diameter = max(ecc.values())
-        #D[a] = diameter
+            #calculate diameter (maximum eccentricity)
+            #diameter = max(ecc.values())
+            #D[a] = diameter
 
-        #calculate betweenness centrality and average over atoms
-        btw = nx.betweenness_centrality(G_corr, k=None, normalized=True, weight='weight', endpoints=False, seed=None)
-        avg_btw[a] = sum(btw.values())/n
+            #calculate betweenness centrality and average over atoms
+            btw = nx.betweenness_centrality(G_corr, k=None, normalized=True, weight='weight', endpoints=False, seed=None)
+            avg_btw_rep[rep] = sum(btw.values())/n
 
-        #MORE EXPLICIT BUT EQUIVALENT CALCULATION OF DIAMETER USING DIJKSTRA ALGORITHM
-        dspl = list(nx.all_pairs_dijkstra_path_length(G_corr))      #get djkistra distances for each node
-        maxw = 0
-        for s in range(n):                                          #find max distance
-            dspl_s = dspl[s]
-            w = list(dspl_s[1].values())
-            for e in range(n):
-                if w[e] > maxw:
-                    maxw = w[e]
-        D[a] = maxw                                                 #store as diameter
+            #MORE EXPLICIT BUT EQUIVALENT CALCULATION OF DIAMETER USING DIJKSTRA ALGORITHM
+            dspl = list(nx.all_pairs_dijkstra_path_length(G_corr))      #get djkistra distances for each node
+            maxw = 0
+            for s in range(n):                                          #find max distance
+                dspl_s = dspl[s]
+                w = list(dspl_s[1].values())
+                for e in range(n):
+                    if w[e] > maxw:
+                        maxw = w[e]
+            D_rep[rep] = maxw                                                 #store as diameter
+
+        disparity[a] = mean(disparity_rep)
+        density[a] = mean(density_rep)
+        D[a] = mean(D_rep)
+        C[a] = mean(C_rep)
+        avg_btw[a] = mean(avg_btw_rep)
+        avg_dist[a] = mean(avg_dist_rep)
 
         print(a)
 
