@@ -7,7 +7,7 @@ from numba import jit
 
 time_start = time.perf_counter()
 
-lattice_type = 'hexagonal'            #write square, triangular or hexagonal
+lattice_type = 'square'            #write square, triangular or hexagonal
 M = 10
 N = 10
 J = 1
@@ -130,7 +130,6 @@ def clustering(A, s):
                 A[m,n] = 0          #now matrix A represents which adjacent atoms have the same spin value
     return A
 
-#@profile
 def main():
 
     def mean(list):
@@ -179,7 +178,16 @@ def main():
 
             Gcc = sorted(nx.connected_components(G2), key=len, reverse=True)
             giant = G2.subgraph(Gcc[0])
-            diameter_of_giant_component_rep[rep] = nx.radius(giant)       
+            #diameter_of_giant_component_rep[rep] = nx.radius(giant)
+            spl = list(nx.all_pairs_shortest_path_length(giant))      #get shortest path lenght for each node in giant component (cluster)
+            maxw = 0
+            for s in range(len(spl)):                                 #find max distance
+                spl_s = spl[s]
+                w = list(spl_s[1].values())
+                for e in range(len(w)):
+                    if w[e] > maxw:
+                        maxw = w[e]
+            diameter_of_giant_component_rep[rep] = maxw               #store as diameter       
 
         density_T[i] = mean(density_rep)
         cc_T[i] = mean(cc_rep)

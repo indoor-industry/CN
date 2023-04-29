@@ -6,21 +6,21 @@ from numba import jit
 
 time_start = time.perf_counter()
 
-lattice_type = 'hexagonal'            #write square, triangular or hexagonal
+lattice_type = 'square'            #write square, triangular or hexagonal
 J = 1                           #spin coupling
 M = 10                             #lattice size MxN
 N = 10
-steps = 1000                         #number of timesteps of evolution per given temperature
-B_sample = 7                        #number of samples between minimum and maximum values of B NEEDS TO BE ODD FOR SENSIBLE RESULTS
-T_sample = 30                        #number of samples between minimum and maximum values of T
-eq_steps=100
+steps = 30000                         #number of timesteps of evolution per given temperature
+B_sample = 5                        #number of samples between minimum and maximum values of B NEEDS TO BE ODD FOR SENSIBLE RESULTS
+T_sample = 20                        #number of samples between minimum and maximum values of T
+eq_steps = 20000
 Tc = (2*abs(J))/np.log(1+np.sqrt(2))         #Onsager critical temperature for square lattice
 
-T_min = 0.01*Tc                        #min temperature to explore
-T_max = 1*Tc                        #max temperature to explore
+T_min = 0.5*Tc                        #min temperature to explore
+T_max = 1.5*Tc                        #max temperature to explore
 
-B_min = -1                         #min magnetic field to explore
-B_max = 1                          #max magnetic field to explore
+B_min = 0                         #min magnetic field to explore
+B_max = 0.5                          #max magnetic field to explore
 
 T = np.linspace(T_min, T_max, T_sample)   #temperature range to explore
 
@@ -91,12 +91,11 @@ def step(A_dense, beta, B, num):
                 M = np.sum(spinlist)                         #total magnetisation
 
                 #update spin configuration if energetically favourable or if thermal fluctuations contribute
-                for offset in range(2):                 #offset to avoid interfering with neighboring spins while rastering trough the lattice
-                    for l in range(offset,len(dE),2):
-                        if dE[l]<=0:
-                            spinlist[l] *= -1
-                        elif np.exp(-dE[l]*beta[j]) > np.random.rand():    #thermal noise
-                            spinlist[l] *= -1   
+                l = np.random.randint(num)
+                if dE[l]<=0:
+                    spinlist[l] *= -1
+                elif np.exp(-dE[l]*beta[j]) > np.random.rand():    #thermal noise
+                    spinlist[l] *= -1   
 
                 E_time.append(E)
                 M_time.append(M)

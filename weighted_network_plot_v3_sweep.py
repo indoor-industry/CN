@@ -157,15 +157,26 @@ def main():
         
         #calculate eccentricity and average over nodes, we call this average geodesic distance
         ecc = nx.eccentricity(G_corr, v=None, sp=None, weight='weight')
-        avg_dist[a] = sum(ecc.values())/n
+        avg_dist[a] = 1/(sum(ecc.values())/n)
 
-        #caluclate diameter (maximum eccentricity)
-        diameter = max(ecc.values())
-        D[a] = diameter
+        #calculate diameter (maximum eccentricity)
+        #diameter = max(ecc.values())
+        #D[a] = diameter
 
         #calculate betweenness centrality and average over atoms
         btw = nx.betweenness_centrality(G_corr, k=None, normalized=True, weight='weight', endpoints=False, seed=None)
         avg_btw[a] = sum(btw.values())/n
+
+        #MORE EXPLICIT BUT EQUIVALENT CALCULATION OF DIAMETER USING DIJKSTRA ALGORITHM
+        dspl = list(nx.all_pairs_dijkstra_path_length(G_corr))      #get djkistra distances for each node
+        maxw = 0
+        for s in range(n):                                          #find max distance
+            dspl_s = dspl[s]
+            w = list(dspl_s[1].values())
+            for e in range(n):
+                if w[e] > maxw:
+                    maxw = w[e]
+        D[a] = maxw                                                 #store as diameter
 
         print(a)
 
