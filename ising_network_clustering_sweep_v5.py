@@ -7,17 +7,30 @@ from numba import jit
 
 time_start = time.perf_counter()
 
-lattice_type = 'square'            #write square, triangular or hexagonal
-M = 20
-N = 20
+lattice_type = 'hexagonal'            #write square, triangular or hexagonal
+M = 10
+N = 10
 J = 1
 B = 0
+steps = 30000
+repeat = 10
 
-Tc = (2*abs(J))/np.log(1+np.sqrt(2))         #Onsager critical temperature for square lattice
-print(Tc)
+Tc = (2*abs(J))/np.log(1+np.sqrt(2))        #Critical temperature
+Tc_h = 2/np.log(2 + np.sqrt(3))             #Critical temperature of hexagonal lattic  at J = 1
+Tc_t = 4 / np.sqrt(3)                       #Critical temperature of triangular lattice at J = 1 
 
-T = Tc
-steps = 20000
+if lattice_type == "square":
+    T = np.linspace(0.5*Tc, 1.5*Tc, 20) 
+elif lattice_type == "hexagonal":
+    T = np.linspace(0.5*Tc_h, 1.5*Tc_h, 20) 
+    Tc = Tc_h
+elif lattice_type == "triangular":
+    T = np.linspace(0.5*Tc_t, 1.5*Tc_t, 20) 
+    Tc = Tc_t
+else: print("Errore!")
+
+ones = np.ones(len(T))
+beta = ones/T
 
 #creates lattice
 def lattice(M, N):
@@ -76,9 +89,8 @@ def colormap(G):
 #function for single step
 @jit(nopython=True)
 def step(A_dense, spinlist, beta, num):
-
-    for l in range(steps):
     
+    for l in range(steps):
         A = np.copy(A_dense)
 
         for m in range(len(spinlist)):
@@ -92,10 +104,11 @@ def step(A_dense, spinlist, beta, num):
         #What decides the flip is
         dE= 2*J*np.multiply(nnsum, spinlist) + 2*B*spinlist
 
+        #Now flip every spin whose dE<0
         i = np.random.randint(num)
-        if dE[i]<=0:
-            spinlist[i] *= -1
-        elif np.exp(-dE[i]*beta) > np.random.rand():     #thermal noise
+        if dE[i]<0:
+            spinlist[i] *= -1        
+        elif np.exp(-dE[i]*beta) > np.random.rand():
             spinlist[i] *= -1
 
         A = np.copy(A_dense)                        #redo this so that adjacency matrix and spins are on the same step
@@ -107,6 +120,7 @@ def step(A_dense, spinlist, beta, num):
 
     return A, spinlist
 
+@jit(nopython=True)
 def clustering(A, s):
     for m in range(len(s)):
         for n in range(len(s)):
@@ -116,46 +130,85 @@ def clustering(A, s):
                 A[m,n] = 0          #now matrix A represents which adjacent atoms have the same spin value
     return A
 
+#@profile
 def main():
+
+    def mean(list):
+        return sum(list)/len(list)
+
     G, pos = lattice(M, N)
 
     n = num(G)
 
-    spinlist = np.random.choice(np.asarray([-1, 1]), n)  #generate random spins for each node
-    
-    spinass(G, spinlist)
+    #rand_spin = np.random.choice(np.asarray([-1, 1]), n)  #generate random spins for each node
 
     Adj = nx.adjacency_matrix(G, nodelist=None, dtype=None, weight='weight')
     A_dense = Adj.todense()
 
-    #iterate some steps
-    A, s = step(A_dense, spinlist, 1/T, n)
+    diameter_of_giant_component_T = np.empty(len(T))
+    density_T = np.empty(len(T))
+    btw_T = np.empty(len(T))
+    cc_T = np.empty(len(T))
+    for i in range(len(T)):
 
-    spinass(G, spinlist)
-    color = colormap(G)
+        cc_rep = np.empty(repeat)
+        density_rep = np.empty(repeat)
+        btw_rep = np.empty(repeat)
+        diameter_of_giant_component_rep = np.empty(repeat)
+        for rep in range(repeat):
 
-    A_clust = clustering(A, s)
+            #spinlist = np.copy(rand_spin)
+            spinlist = np.random.choice(np.asarray([-1, 1]), n)  #generate random spins for each node
 
-    G2 = nx.from_scipy_sparse_array(sparse.csr_matrix(A_clust)) #G2 only hasa the relevant edges
+            #iterate some steps
+            A, s = step(A_dense, spinlist, beta[i], n)        
+            A_clust = clustering(A, s)      
 
-    den = nx.density(G2)
-    print('Density = {}'.format(den))
-    ne = nx.number_of_edges(G2)
-    print('numer of edges = {}'.format(ne))
+            G2 = nx.from_scipy_sparse_array(sparse.csr_matrix(A_clust)) #G2 only hasa the relevant edges
+        
+            density = nx.density(G2)
+            density_rep[rep] = density
 
-    time_elapsed = (time.perf_counter() - time_start)
-    print ("checkpoint 1 %5.1f secs" % (time_elapsed))
+            cc = nx.number_connected_components(G2)
+            cc_rep[rep] = cc
 
-    fig, ax = plt.subplots(1, 2)
-    nx.draw(G2, node_color=color, node_size=20, ax=ax[0], edge_color='black', with_labels=False)
-    ax[0].set_title('Clustering')
-    nx.draw(G, node_color=color, node_size=20, ax=ax[1], edge_color='black', pos=pos, with_labels=False)
-    ax[1].set_title('Lattice')
+            #calculate the average betweennes centrality of nodes
+            full_btw = nx.betweenness_centrality(G2)
+            mean_btw = mean(full_btw.values())
+            btw_rep[rep] = mean_btw
+
+            Gcc = sorted(nx.connected_components(G2), key=len, reverse=True)
+            giant = G2.subgraph(Gcc[0])
+            diameter_of_giant_component_rep[rep] = nx.radius(giant)       
+
+        density_T[i] = mean(density_rep)
+        cc_T[i] = mean(cc_rep)
+        btw_T[i] = mean(btw_rep)
+        diameter_of_giant_component_T[i] = mean(diameter_of_giant_component_rep)
+
+        print(i)
+
+    fig = plt.figure()
+    ax1 = fig.add_subplot(2, 2, 1)
+    ax2 = fig.add_subplot(2, 2, 2)
+    ax3 = fig.add_subplot(2, 2, 3)
+    ax4 = fig.add_subplot(2, 2, 4)
+    ax1.scatter(T/Tc, diameter_of_giant_component_T, color = 'orange')
+    ax1.set_ylabel('diam. of giant component(T/Tc)')
+    ax2.scatter(T/Tc, density_T, color = 'blue')
+    ax2.set_ylabel('density(T/Tc)')
+    ax3.scatter(T/Tc, btw_T, color = 'green')
+    ax3.set_ylabel('|betweenness centrality|(T/Tc)')
+    ax4.scatter(T/Tc, cc_T, color = 'black')
+    ax4.set_ylabel('connected components(T/Tc)')
+    fig.suptitle('{} {}x{}  B={} J={}, ev_steps={}'.format(lattice_type, M, N, B, J, steps))
+    fig.tight_layout()
     
     time_elapsed = (time.perf_counter() - time_start)
     print ("checkpoint 2 %5.1f secs" % (time_elapsed))
     
     plt.show()
+
 
 if __name__ == "__main__":
     main()
