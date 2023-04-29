@@ -11,16 +11,15 @@ time_start = time.perf_counter()
 
 k_b = 8.617333262e-5
 lattice_type = 'square'            #write square, triangular or hexagonal
-J = 1                        #spin coupling constant
+J = -0.5                        #spin coupling constant
 B = 0                     #external magnetic field
-M = 20                          #lattice size MxN
-N = 20
-steps = 20000                      #number of evolution steps per given temperature
+M = 10                          #lattice size MxN
+N = 10
+steps = 1000                      #number of evolution steps per given temperature
+T = 10
 
 Tc = (2*abs(J))/np.log(1+np.sqrt(2))         #Onsager critical temperature for square lattice
 print(Tc)
-
-T = 0.5*Tc
 
 #function creates lattice
 def lattice(M, N):
@@ -72,20 +71,25 @@ def step(A_dense, beta, num):
         nnsum = np.sum(A,axis=1)
 
         #What decides the flip is
-        dE = 2*J*np.multiply(nnsum, spinlist) + 2*B*spinlist    #change in energy  
-        M = np.sum(spinlist)
+        dE = -4*J*np.multiply(nnsum, spinlist) + 2*B*spinlist    #change in energy   
+        E = J*sum(np.multiply(nnsum, spinlist)) - B*sum(spinlist)   #total energy    
     
         #change spins if energetically favourable or according to thermal noise
-        i = np.random.randint(num)
-
-        if dE[i]<=0:
-            spinlist[i] *= -1
-        elif np.exp(-dE[i]*beta) > np.random.rand():     #thermal noise
-            spinlist[i] *= -1
+        for offset in range(2):                 #offset to avoid interfering with neighboring spins while rastering
+            for i in range(offset,len(dE),2):
+                if dE[i]<0:
+                    spinlist[i] *= -1
+                elif dE[i]==0:
+                    if np.exp(-(E/num)*beta) > np.random.rand():
+                        spinlist[i] *= -1
+                    else:
+                        continue
+                elif np.exp(-dE[i]*beta) > np.random.rand():     #thermal noise
+                    spinlist[i] *= -1
         
         for atom in range(num):
             for neighbour in range(num):
-                corr_matrix[atom][neighbour]+=(spinlist[atom]*spinlist[neighbour])# - (M/num)**2
+                corr_matrix[atom][neighbour]+=(spinlist[atom]*spinlist[neighbour])              
 
     norm_corr_matrix = corr_matrix/steps
     
@@ -119,33 +123,22 @@ def main():
     corr_matrix, spins, density = step(A_dense, 1/T, n)
 
     print(density)
+    print(corr_matrix)
 
     G_corr = nx.create_empty_copy(G, with_data=True)
 
-    pos=0
-    neg=0
     for i in range(n):
         for j in range(n):
             if j<i:
                 G_corr.add_edge(i, j, weight=corr_matrix[i][j])
-                if corr_matrix[i][j]>0:
-                    pos += 1
-                else:
-                    neg += 1
-
-    print(pos)
-    print(neg)
-    print(pos+neg)
 
     w = nx.get_edge_attributes(G_corr, 'weight')
 
     color = colormap(spins, n)
-    nx.draw_networkx(G_corr, node_size=10, node_color=color, with_labels=False, edge_cmap=mpl.colormaps['seismic'], edge_vmin=-1, edge_vmax=1, edge_color=list(w.values()), width=0.1)#np.exp(abs(np.array(list(w.values())))))
-    plt.title('{} T={}'.format(lattice_type, T))
-    plt.legend(title='red={}, blue={}, total={}'.format(pos, neg, pos+neg), loc='upper left')
-
+    nx.draw_networkx(G_corr, node_size=10, node_color=color, with_labels=False, edge_cmap=mpl.colormaps['seismic'], edge_vmin=-1, edge_vmax=1, edge_color=list(w.values()), width=np.exp(abs(np.array(list(w.values())))))
+    
     time_elapsed = (time.perf_counter() - time_start)
-    print ("checkpoint %5.1f secs" % (time_elapsed))
+    print("checkpoint %5.1f secs" % (time_elapsed))
     
     plt.show()
 
