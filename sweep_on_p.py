@@ -10,42 +10,28 @@ k_b = 8.617333262e-5
 lattice_type = 'ER'            #write square, triangular or hexagonal, ER
 J = 1                       #spin coupling constant
 B = 0                       #external magnetic field
-M = 10                      #lattice size MxN
-N = 10
+M = 5                        #lattice size MxN
+N = 5
 steps = 20000                      #number of evolution steps per given temperature
-steps_to_eq = 10000                   #steps until equilibrium is reached
+steps_to_eq = 15000                   #steps until equilibrium is reached
 repeat = 1                     #number of trials per temperature to average over
 nbstrap = 100
 
+lenth_p_sweep = np.linspace(0.3/(N*M), 1.5/(N*M), 4) # 0.5 1 2.5 2
+
 Tc = (2*abs(J))/np.log(1+np.sqrt(2))        #Critical temperature
 Tc_h = 2/np.log(2 + np.sqrt(3))             #Critical temperature of hexagonal lattic  at J = 1
-Tc_t = 4 / np.log(3)                       #Critical temperature of triangular lattice at J = 1 
+Tc_t = 4 / np.sqrt(3)                       #Critical temperature of triangular lattice at J = 1 
 
-if lattice_type == "square":
-    T = np.linspace(0.5*Tc, 1.5*Tc, 30) 
-elif lattice_type == "hexagonal":
-    T = np.linspace(0.5*Tc_h, 1.5*Tc_h, 30) 
-    Tc = Tc_h
-elif lattice_type == "triangular":
-    T = np.linspace(0.5*Tc_t, 1.5*Tc_t, 30) 
-    Tc = Tc_t
-else:
-    T = np.linspace(0.5*Tc, 3*Tc, 20) 
 
+T = np.linspace(0.1*Tc, 1.0*Tc, 35) 
 ones = np.ones(len(T))
 beta = ones/(T)
 
 #function creates lattice
-def lattice(M, N):
-    if lattice_type == 'hexagonal':
-        lattice = nx.hexagonal_lattice_graph(M, N, periodic=True, with_positions=True, create_using=None)
-    elif lattice_type == 'triangular':
-        lattice = nx.triangular_lattice_graph(M, N, periodic=True, with_positions=True, create_using=None)
-    elif lattice_type == 'square':
-        lattice = nx.grid_2d_graph(M, N, periodic=True, create_using=None)
-    elif lattice_type == 'ER':
-        lattice = nx.erdos_renyi_graph(M*N, 4/(M*N), seed=None, directed=False)
-    return lattice
+def lattice(M, N, p):
+        lattice = nx.erdos_renyi_graph(M*N, p, seed=None, directed=False)
+        return lattice
 
 #count number of sites in lattice
 def num(G):
@@ -175,34 +161,35 @@ def step(A_dense, beta, num):
         E_beta[j] = avg_mean_E               #used to plot energy against temperature
         M_beta[j] = abs(avg_mean_M)              #used to plot magnetisation against temperature
 
-        print(j)
+        #print(j)
 
     return E_beta, M_beta, cv_beta, xi_beta, num
 
 def main():
+    cv_array = []
+    xi_array = []
 
-    #create lattice
-    G = lattice(M, N)
+    for p in lenth_p_sweep:
+        #create lattice
+        G = lattice(M, N, p)
+        
+        #convert node labels to integers
+        G = nx.convert_node_labels_to_integers(G, first_label=0, ordering='default', label_attribute=None)
+        
+        #get number of nodes
+        n = num(G)
+        
+        #extract adjacency matrix and convert to numpy dense array
+        Adj = nx.adjacency_matrix(G, nodelist=None, dtype=None, weight='weight')
+        A_dense = Adj.todense()
+        
+        #iterate steps and sweep trough beta
+        E_beta, M_beta, cv_beta, xi_beta, n = step(A_dense, beta, n)
+
+        cv_array.append(cv_beta)
+        xi_array.append(xi_beta)
     
-    #convert node labels to integers
-    G = nx.convert_node_labels_to_integers(G, first_label=0, ordering='default', label_attribute=None)
-    
-    #get number of nodes
-    n = num(G)
-    
-    #extract adjacency matrix and convert to numpy dense array
-    Adj = nx.adjacency_matrix(G, nodelist=None, dtype=None, weight='weight')
-    A_dense = Adj.todense()
-    
-    #iterate steps and sweep trough beta
-    E_beta, M_beta, cv_beta, xi_beta, n = step(A_dense, beta, n)
-    
-    #save the data
-    np.savetxt(f"data/E_{M}x{N}_{lattice_type}_B={B}.csv", E_beta, delimiter=",")
-    np.savetxt(f"data/M_{M}x{N}_{lattice_type}_B={B}.csv", M_beta, delimiter=",")
-    np.savetxt(f"data/cv_{M}x{N}_{lattice_type}_B={B}.csv", cv_beta, delimiter=",")
-    np.savetxt(f"data/xi_{M}x{N}_{lattice_type}_B={B}.csv", xi_beta, delimiter=",")
-    np.savetxt(f"data/T_{M}x{N}_{lattice_type}_B={B}.csv", T, delimiter=",")
+    print(len(cv_array))
 
     #for normalization purposes
     n_normalize = n*np.ones(len(E_beta)) 
@@ -216,18 +203,44 @@ def main():
     ax2 = fig.add_subplot(2, 2, 2)
     ax3 = fig.add_subplot(2, 2, 3)
     ax4 = fig.add_subplot(2, 2, 4)
-    ax1.scatter(T/Tc, E_beta/(n_normalize*abs(J)), color = 'orange')
-    ax1.set_ylabel('$<E>/J$')
+    ax1.scatter(T/Tc, cv_array[0]/n_normalize, color = 'orange')
+    ax1.set_ylabel('$C_v$')
     ax1.set_xlabel('T/Tc_square')
-    ax2.scatter(T/Tc, M_beta/n_normalize, color = 'blue')
-    ax2.set_ylabel('$<\sqrt{|M^2|}>$')
+    ax2.scatter(T/Tc, cv_array[1]/n_normalize, color = 'blue')
+    ax2.set_ylabel('$C_v$')
     ax2.set_xlabel('T/Tc_square')
-    ax3.scatter(T/Tc, cv_beta/n_normalize, color = 'green')
+    ax3.scatter(T/Tc, cv_array[2]/n_normalize, color = 'green')
     ax3.set_ylabel('$C_v$')
     ax3.set_xlabel('T/Tc_square')
-    ax4.scatter(T/Tc, xi_beta/n_normalize, color = 'black')
+    ax4.scatter(T/Tc, cv_array[3]/n_normalize, color = 'black')
+    ax4.set_ylabel('$C_v$')
+    ax4.set_xlabel('T/Tc_square')
+    fig.suptitle('{} no.atoms={}  B={} J={}, ev_steps={}, samples/T={}'.format(lattice_type, n, B, J, steps, repeat))
+    fig.tight_layout()
+    plt.show()
+
+    #plot Energy and magnetisation per site as a function of temperature
+    fig = plt.figure()
+    ax1 = fig.add_subplot(2, 2, 1)
+    ax2 = fig.add_subplot(2, 2, 2)
+    ax3 = fig.add_subplot(2, 2, 3)
+    ax4 = fig.add_subplot(2, 2, 4)
+    ax1.scatter(T/Tc, xi_array[0]/n_normalize, color = 'orange')
+    ax1.set_ylabel('$\Xi$')
+    ax1.set_xlabel('T/Tc_square')
+    ax1.set_title('{}/N*M'.format(round(lenth_p_sweep[0]*N*M), 2))
+    ax2.scatter(T/Tc, xi_array[1]/n_normalize, color = 'blue')
+    ax2.set_ylabel('$\Xi$')
+    ax2.set_xlabel('T/Tc_square')
+    ax2.set_title('{}/N*M'.format(round(lenth_p_sweep[1]*N*M, 2)))
+    ax3.scatter(T/Tc, xi_array[2]/n_normalize, color = 'green')
+    ax3.set_ylabel('$\Xi$')
+    ax3.set_xlabel('T/Tc_square')
+    ax3.set_title('{}/N*M'.format(round(lenth_p_sweep[2]*N*M, 2)))
+    ax4.scatter(T/Tc, xi_array[3]/n_normalize, color = 'black')
     ax4.set_ylabel('$\Xi$')
     ax4.set_xlabel('T/Tc_square')
+    ax4.set_title('{}/N*M'.format(round(lenth_p_sweep[3]*N*M, 2)))
     fig.suptitle('{} no.atoms={}  B={} J={}, ev_steps={}, samples/T={}'.format(lattice_type, n, B, J, steps, repeat))
     fig.tight_layout()
     plt.show()
