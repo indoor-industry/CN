@@ -7,30 +7,29 @@ from numba import jit
 time_start = time.perf_counter()
 
 k_b = 8.617333262e-5
-lattice_type = 'ER'            #write square, triangular or hexagonal, ER
+lattice_type = 'hexagonal'            #write square, triangular or hexagonal, ER
 J = 1                       #spin coupling constant
 B = 0                       #external magnetic field
-M = 10                      #lattice size MxN
-N = 10
+M = 24                          #lattice size MxN
+N = 24
 steps = 20000                      #number of evolution steps per given temperature
-steps_to_eq = 10000                   #steps until equilibrium is reached
+steps_to_eq = 15000                   #steps until equilibrium is reached
 repeat = 1                     #number of trials per temperature to average over
 nbstrap = 100
 
 Tc = (2*abs(J))/np.log(1+np.sqrt(2))        #Critical temperature
 Tc_h = 2/np.log(2 + np.sqrt(3))             #Critical temperature of hexagonal lattic  at J = 1
-Tc_t = 4 / np.log(3)                       #Critical temperature of triangular lattice at J = 1 
+Tc_t = 4 / np.sqrt(3)                       #Critical temperature of triangular lattice at J = 1 
 
 if lattice_type == "square":
-    T = np.linspace(0.5*Tc, 1.5*Tc, 30) 
+    T = np.linspace(0.5*Tc, 1.5*Tc, 10) 
 elif lattice_type == "hexagonal":
-    T = np.linspace(0.5*Tc_h, 1.5*Tc_h, 30) 
+    T = np.linspace(0.5*Tc_h, 1.5*Tc_h, 10) 
     Tc = Tc_h
 elif lattice_type == "triangular":
-    T = np.linspace(0.5*Tc_t, 1.5*Tc_t, 30) 
+    T = np.linspace(0.5*Tc_t, 1.5*Tc_t, 10) 
     Tc = Tc_t
-else:
-    T = np.linspace(0.5*Tc, 3*Tc, 20) 
+else: print("Errore!")
 
 ones = np.ones(len(T))
 beta = ones/(T)
@@ -44,7 +43,7 @@ def lattice(M, N):
     elif lattice_type == 'square':
         lattice = nx.grid_2d_graph(M, N, periodic=True, create_using=None)
     elif lattice_type == 'ER':
-        lattice = nx.erdos_renyi_graph(M*N, 4/(M*N), seed=None, directed=False)
+        lattice = nx.erdos_renyi_graph(M*N, 0.04, seed=None, directed=False)
     return lattice
 
 #count number of sites in lattice
@@ -210,27 +209,27 @@ def main():
     time_elapsed = (time.perf_counter() - time_start)
     print ("checkpoint %5.1f secs" % (time_elapsed))
 
-    #plot Energy and magnetisation per site as a function of temperature
-    fig = plt.figure()
-    ax1 = fig.add_subplot(2, 2, 1)
-    ax2 = fig.add_subplot(2, 2, 2)
-    ax3 = fig.add_subplot(2, 2, 3)
-    ax4 = fig.add_subplot(2, 2, 4)
-    ax1.scatter(T/Tc, E_beta/(n_normalize*abs(J)), color = 'orange')
-    ax1.set_ylabel('$<E>/J$')
-    ax1.set_xlabel('T/Tc_square')
-    ax2.scatter(T/Tc, M_beta/n_normalize, color = 'blue')
-    ax2.set_ylabel('$<\sqrt{|M^2|}>$')
-    ax2.set_xlabel('T/Tc_square')
-    ax3.scatter(T/Tc, cv_beta/n_normalize, color = 'green')
-    ax3.set_ylabel('$C_v$')
-    ax3.set_xlabel('T/Tc_square')
-    ax4.scatter(T/Tc, xi_beta/n_normalize, color = 'black')
-    ax4.set_ylabel('$\Xi$')
-    ax4.set_xlabel('T/Tc_square')
-    fig.suptitle('{} no.atoms={}  B={} J={}, ev_steps={}, samples/T={}'.format(lattice_type, n, B, J, steps, repeat))
-    fig.tight_layout()
-    plt.show()
+#plot Energy and magnetisation per site as a function of temperature
+fig = plt.figure()
+ax1 = fig.add_subplot(2, 2, 1)
+ax2 = fig.add_subplot(2, 2, 2)
+ax3 = fig.add_subplot(2, 2, 3)
+ax4 = fig.add_subplot(2, 2, 4)
+ax1.scatter(T/Tc, E_beta/(n_normalize*abs(J)), color = 'orange')
+ax1.set_ylabel('$<E>/J$')
+ax1.set_xlabel('T/Tc')
+ax2.scatter(T/Tc, M_beta/n_normalize, color = 'blue')
+ax2.set_ylabel('$<\sqrt{|M^2|}>$')
+ax2.set_xlabel('T/Tc')
+ax3.scatter(T/Tc, cv_beta/n_normalize, color = 'green')
+ax3.set_ylabel('$C_v$')
+ax3.set_xlabel('T/Tc')
+ax4.scatter(T/Tc, xi_beta/n_normalize, color = 'black')
+ax4.set_ylabel('$\Xi$')
+ax4.set_xlabel('T/Tc')
+fig.suptitle('{} no.atoms={}  B={} J={}, ev_steps={}, samples/T={}'.format(lattice_type, n, B, J, steps, repeat))
+fig.tight_layout()
+plt.show()
 
 if __name__ =="__main__":
     main()
