@@ -7,13 +7,13 @@ from numba import jit
 
 time_start = time.perf_counter()
 
-lattice_type = 'square'            #write square, triangular or hexagonal
+lattice_type = 'ER'            #write square, triangular or hexagonal
 M = 10
 N = 10
 J = 1
 B = 0
 steps = 30000
-repeat = 10
+repeat = 20
 
 Tc = (2*abs(J))/np.log(1+np.sqrt(2))        #Critical temperature
 Tc_h = 2/np.log(2 + np.sqrt(3))             #Critical temperature of hexagonal lattic  at J = 1
@@ -25,8 +25,11 @@ elif lattice_type == "hexagonal":
     T = np.linspace(0.5*Tc_h, 1.5*Tc_h, 20) 
     Tc = Tc_h
 elif lattice_type == "triangular":
-    T = np.linspace(0.5*Tc_t, 1.5*Tc_t, 20) 
+    T = np.linspace(0.5*Tc_t, 2*Tc_t, 20) 
     Tc = Tc_t
+elif lattice_type == "ER":
+    T = np.linspace(1, 3.5, 20) 
+    Tc = 1
 else: print("Errore!")
 
 ones = np.ones(len(T))
@@ -37,30 +40,16 @@ def lattice(M, N):
     if lattice_type == 'hexagonal':
         lattice = nx.hexagonal_lattice_graph(M, N, periodic=True, with_positions=True, create_using=None)
         lattice = nx.convert_node_labels_to_integers(lattice, first_label=0, ordering='default', label_attribute=None)
-        pos = nx.get_node_attributes(lattice, 'pos') #use for any shape other than square
     elif lattice_type == 'triangular':
         lattice = nx.triangular_lattice_graph(M, N, periodic=True, with_positions=True, create_using=None)
         lattice = nx.convert_node_labels_to_integers(lattice, first_label=0, ordering='default', label_attribute=None)
-        pos = nx.get_node_attributes(lattice, 'pos') #use for any shape other than square
     elif lattice_type == 'square':
         lattice = nx.grid_2d_graph(M, N, periodic=True, create_using=None)
         lattice = nx.convert_node_labels_to_integers(lattice, first_label=0, ordering='default', label_attribute=None)
-        pos = generate_grid_pos(lattice, M, N) #use for 2D grid network
-
-    return lattice, pos
-
-def generate_grid_pos(G, M, N):
-    p = []
-    for m in range(M):
-        for n in range(N):
-            p.append((n, m))
-    
-    grid_pos = {}
-    k = 0
-    for node in G:
-        grid_pos[node]=p[k]
-        k+=1
-    return grid_pos
+    elif lattice_type == 'ER':
+        lattice = nx.erdos_renyi_graph(M*N, 0.04, seed=None, directed=False)
+        lattice = nx.convert_node_labels_to_integers(lattice, first_label=0, ordering='default', label_attribute=None)
+    return lattice
 
 #function that counts numer of nodes
 def num(G):
@@ -135,7 +124,7 @@ def main():
     def mean(list):
         return sum(list)/len(list)
 
-    G, pos = lattice(M, N)
+    G = lattice(M, N)
 
     n = num(G)
 
@@ -209,7 +198,7 @@ def main():
     ax3.set_ylabel('|betweenness centrality|(T/Tc)')
     ax4.scatter(T/Tc, cc_T, color = 'black')
     ax4.set_ylabel('connected components(T/Tc)')
-    fig.suptitle('{} {}x{}  B={} J={}, ev_steps={}'.format(lattice_type, M, N, B, J, steps))
+    fig.suptitle('{} no. atoms={},  B={}, J={}, ev_steps={}'.format(lattice_type, n, B, J, steps))
     fig.tight_layout()
     
     time_elapsed = (time.perf_counter() - time_start)

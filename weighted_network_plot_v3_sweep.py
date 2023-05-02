@@ -9,13 +9,13 @@ from numba import jit
 time_start = time.perf_counter()
 
 k_b = 8.617333262e-5
-lattice_type = 'square'            #write square, triangular or hexagonal
+lattice_type = 'ER'            #write square, triangular or hexagonal
 J = 1                        #spin coupling constant
 B = 0                     #external magnetic field
 M = 10                          #lattice size MxN
 N = 10
 steps = 20000                      #number of evolution steps per given temperature
-repeat = 10
+repeat = 20
 
 Tc = (2*abs(J))/np.log(1+np.sqrt(2))        #Critical temperature
 Tc_h = 2/np.log(2 + np.sqrt(3))             #Critical temperature of hexagonal lattic  at J = 1
@@ -29,20 +29,22 @@ elif lattice_type == "hexagonal":
 elif lattice_type == "triangular":
     T = np.linspace(0.5*Tc_t, 1.5*Tc_t, 20) 
     Tc = Tc_t
+elif lattice_type == "ER":
+    T = np.linspace(1, 3.5, 20) 
+    Tc = 1
 else: print("Errore!")
 
 #function creates lattice
 def lattice(M, N):
     if lattice_type == 'hexagonal':
         lattice = nx.hexagonal_lattice_graph(M, N, periodic=True, with_positions=True, create_using=None)
-        return lattice, 3
     elif lattice_type == 'triangular':
         lattice = nx.triangular_lattice_graph(M, N, periodic=True, with_positions=True, create_using=None)
-        return lattice, 6
     elif lattice_type == 'square':
         lattice = nx.grid_2d_graph(M, N, periodic=True, create_using=None)
-        return lattice, 4
-    #return lattice
+    elif lattice_type == 'ER':
+        lattice = nx.erdos_renyi_graph(M*N, 0.04, seed=None, directed=False)
+    return lattice
 
 #count number of sites in lattice
 def num(G):
@@ -109,7 +111,7 @@ def main():
         return sum(list)/len(list)
 
     #create lattice
-    G, nn_number = lattice(M, N)
+    G = lattice(M, N)
     #convert node labels to integers
     G = nx.convert_node_labels_to_integers(G, first_label=0, ordering='default', label_attribute=None)
     #get number of nodes
