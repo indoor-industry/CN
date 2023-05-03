@@ -12,12 +12,12 @@ J = 1  # spin coupling constant
 B = 0  # external magnetic field
 M = 10  # lattice size MxN
 N = 10
-steps = 20000  # number of evolution steps per given temperature
-steps_to_eq = 15000  # steps until equilibrium is reached
+steps = 15000  # number of evolution steps per given temperature
+steps_to_eq = 10000  # steps until equilibrium is reached
 repeat = 1  # number of trials per temperature to average over
 nbstrap = 1000
 
-lenth_p_sweep = np.linspace(0.5/(N*M), 2/(N*M), 4)  # 0.5 1 2.5 2
+lenth_p_sweep = np.linspace(1/(N*M), 4/(N*M), 4)  # 0.5 1 2.5 2
 
 Tc = (2*abs(J))/np.log(1+np.sqrt(2))  # Critical temperature
 # Critical temperature of hexagonal lattic  at J = 1
@@ -25,7 +25,7 @@ Tc_h = 2/np.log(2 + np.sqrt(3))
 Tc_t = 4 / np.sqrt(3)  # Critical temperature of triangular lattice at J = 1
 
 
-T = np.linspace(0.4*Tc, 1.5*Tc, 20)
+T = np.linspace(0.4*Tc, 2*Tc, 20)
 ones = np.ones(len(T))
 beta = ones/(T)
 
