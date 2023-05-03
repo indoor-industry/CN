@@ -17,7 +17,7 @@ steps_to_eq = 15000  # steps until equilibrium is reached
 repeat = 1  # number of trials per temperature to average over
 nbstrap = 1000
 
-lenth_p_sweep = np.linspace(0.3/(N*M), 1.5/(N*M), 4)  # 0.5 1 2.5 2
+lenth_p_sweep = np.linspace(0.5/(N*M), 2/(N*M), 4)  # 0.5 1 2.5 2
 
 Tc = (2*abs(J))/np.log(1+np.sqrt(2))  # Critical temperature
 # Critical temperature of hexagonal lattic  at J = 1
@@ -25,7 +25,7 @@ Tc_h = 2/np.log(2 + np.sqrt(3))
 Tc_t = 4 / np.sqrt(3)  # Critical temperature of triangular lattice at J = 1
 
 
-T = np.linspace(0.1*Tc, 1.0*Tc, 35)
+T = np.linspace(0.4*Tc, 1.5*Tc, 20)
 ones = np.ones(len(T))
 beta = ones/(T)
 
@@ -224,13 +224,13 @@ def main():
     # ax2 = fig.add_subplot(2, 2, 2)
     # ax3 = fig.add_subplot(2, 2, 3)
     # ax4 = fig.add_subplot(2, 2, 4)
-    ax1.scatter(T/Tc, m_array[0]/n_normalize, color='orange',
+    ax1.scatter(T, m_array[0]/n_normalize, color='orange',
                 label='p={}/N*M'.format(round(lenth_p_sweep[0]*N*M)))
-    ax1.scatter(T/Tc, m_array[1]/n_normalize, color='blue',
+    ax1.scatter(T, m_array[1]/n_normalize, color='blue',
                 label='p={}/N*M'.format(round(lenth_p_sweep[1]*N*M)))
-    ax1.scatter(T/Tc, m_array[2]/n_normalize, color='green',
+    ax1.scatter(T, m_array[2]/n_normalize, color='green',
                 label='p={}/N*M'.format(round(lenth_p_sweep[2]*N*M)))
-    ax1.scatter(T/Tc, m_array[3]/n_normalize, color='black',
+    ax1.scatter(T, m_array[3]/n_normalize, color='black',
                 label='p={}/N*M'.format(round(lenth_p_sweep[3]*N*M)))
     ax1.set_ylabel('$<\sqrt{|M^2|}>$')
     ax1.set_xlabel('T/Tc_square')
@@ -270,22 +270,22 @@ def main():
     ax2 = fig.add_subplot(2, 2, 2)
     ax3 = fig.add_subplot(2, 2, 3)
     ax4 = fig.add_subplot(2, 2, 4)
-    ax1.scatter(T/Tc, m_array[0]/n_normalize, color='orange')
+    ax1.scatter(T, m_array[0]/n_normalize, color='orange')
     ax1.set_ylabel('$<\sqrt{|M^2|}>$')
-    ax1.set_xlabel('T/Tc_square')
-    ax1.set_title('{}/N*M'.format(round(lenth_p_sweep[0]*N*M), 2))
-    ax2.scatter(T/Tc, m_array[1]/n_normalize, color='blue')
+    ax1.set_xlabel('T')
+    ax1.set_title('p={}/N*M'.format(round(lenth_p_sweep[0]*N*M), 2))
+    ax2.scatter(T, m_array[1]/n_normalize, color='blue')
     ax2.set_ylabel('$<\sqrt{|M^2|}>$')
-    ax2.set_xlabel('T/Tc_square')
-    ax2.set_title('{}/N*M'.format(round(lenth_p_sweep[1]*N*M, 2)))
-    ax3.scatter(T/Tc, m_array[2]/n_normalize, color='green')
+    ax2.set_xlabel('T')
+    ax2.set_title('p={}/N*M'.format(round(lenth_p_sweep[1]*N*M, 2)))
+    ax3.scatter(T, m_array[2]/n_normalize, color='green')
     ax3.set_ylabel('$<\sqrt{|M^2|}>$')
-    ax3.set_xlabel('T/Tc_square')
-    ax3.set_title('{}/N*M'.format(round(lenth_p_sweep[2]*N*M, 2)))
-    ax4.scatter(T/Tc, m_array[3]/n_normalize, color='black')
+    ax3.set_xlabel('T')
+    ax3.set_title('p={}/N*M'.format(round(lenth_p_sweep[2]*N*M, 2)))
+    ax4.scatter(T, m_array[3]/n_normalize, color='black')
     ax4.set_ylabel('$<\sqrt{|M^2|}>$')
-    ax4.set_xlabel('T/Tc_square')
-    ax4.set_title('{}/N*M'.format(round(lenth_p_sweep[3]*N*M, 2)))
+    ax4.set_xlabel('T')
+    ax4.set_title('p={}/N*M'.format(round(lenth_p_sweep[3]*N*M, 2)))
     fig.suptitle('{} no.atoms={}  B={} J={}, ev_steps={}, samples/T={}'.format(
         lattice_type, n, B, J, steps, repeat))
     fig.tight_layout()
