@@ -7,17 +7,25 @@ from numba import jit
 
 time_start = time.perf_counter()
 
-lattice_type = 'square'            #write square, triangular or hexagonal
-M = 20
-N = 20
+lattice_type = 'ER'            #write square, triangular or hexagonal
+M = 10
+N = 10
 J = 1
 B = 0
 
-Tc = (2*abs(J))/np.log(1+np.sqrt(2))         #Onsager critical temperature for square lattice
-print(Tc)
-
-T = Tc
 steps = 20000
+
+if lattice_type == "hexagonal":
+    Tc = 2/np.log(2 + np.sqrt(3))             #Critical temperature of hexagonal lattic  at J = 1
+elif lattice_type == 'square':
+    Tc = (2*abs(J))/np.log(1+np.sqrt(2))        #Critical temperature
+elif lattice_type == "triangular": 
+    Tc = 4 / np.sqrt(3)                       #Critical temperature of triangular lattice at J = 1 
+elif lattice_type == "ER":
+    Tc = 1
+else: print("Errore!")
+
+T = 5*Tc
 
 #creates lattice
 def lattice(M, N):
@@ -33,7 +41,10 @@ def lattice(M, N):
         lattice = nx.grid_2d_graph(M, N, periodic=True, create_using=None)
         lattice = nx.convert_node_labels_to_integers(lattice, first_label=0, ordering='default', label_attribute=None)
         pos = generate_grid_pos(lattice, M, N) #use for 2D grid network
-
+    elif lattice_type == 'ER':
+        lattice = nx.erdos_renyi_graph(M*N, 0.04, seed=None, directed=False)
+        lattice = nx.convert_node_labels_to_integers(lattice, first_label=0, ordering='default', label_attribute=None)
+        pos = generate_grid_pos(lattice, M, N) #use for 2D grid network
     return lattice, pos
 
 def generate_grid_pos(G, M, N):
