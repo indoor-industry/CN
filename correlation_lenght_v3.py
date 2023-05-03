@@ -6,19 +6,33 @@ from numba import jit
 
 time_start = time.perf_counter()
 
-lattice_type = 'square'              #write square, triangular or hexagonal
+lattice_type = 'ER'              #write square, triangular or hexagonal
+p = 0.04
+
 J = 1                             #spin coupling constant
 B = 0                                #external magnetic field
 M = 20                               #lattice size MxN
 N = 20
-steps = 20000                         #number of evolution steps per given temperature
-max_r = 15
-repeat = 1
+steps = 30000                         #number of evolution steps per given temperature
+max_r = 10
+repeat = 10
 
-Tc = (2*abs(J))/np.log(1+np.sqrt(2))         #Onsager critical temperature for square lattice
-print(Tc)
+Tc = (2*abs(J))/np.log(1+np.sqrt(2))        #Critical temperature
+Tc_h = 2/np.log(2 + np.sqrt(3))             #Critical temperature of hexagonal lattic  at J = 1
+Tc_t = 4 / np.sqrt(3)                       #Critical temperature of triangular lattice at J = 1 
 
-T = np.linspace(1.5, 3, 5)   #temperature range
+if lattice_type == "square":
+    T = np.linspace(0.5*Tc, 1.5*Tc, 10) 
+elif lattice_type == "hexagonal":
+    T = np.linspace(0.5*Tc_h, 1.5*Tc_h, 10) 
+    Tc = Tc_h
+elif lattice_type == "triangular":
+    T = np.linspace(0.1*Tc_t, 2*Tc_t, 10) 
+    Tc = Tc_t
+elif lattice_type == "ER":
+    T = np.linspace(1, 3.5, 10) 
+    Tc = 1
+else: print("Errore!")
 
 #function creates lattice
 def lattice(M, N):
@@ -31,6 +45,9 @@ def lattice(M, N):
     elif lattice_type == 'square':
         lattice = nx.grid_2d_graph(M, N, periodic=True, create_using=None)
         return lattice, 4
+    elif lattice_type == 'ER':
+        lattice = nx.erdos_renyi_graph(M*N, p, seed=None, directed=False)
+        return lattice, 0.5*(num(lattice)-1)*p          #true only for large number of edges
     #return lattice
 
 #count number of sites in lattice
@@ -130,12 +147,13 @@ def main():
         #iterate steps and sweep trough beta
         corr_r, r = step(A_dense, 1/T[j], n, nn_number, lenghts, spinlist)
 
-        plt.plot(r, corr_r, label=f'T={T[j]}')
+        plt.plot(r, corr_r, label=f'T={T[j]:.2f}')
+        print(j)
     
     plt.xlabel('node distance r')
     plt.ylabel('<$\sigma(i)\sigma(i+r)$>')
     plt.legend()
-    plt.title('J={}, B={}, ev_steps={}, T={}, size={}x{}'.format(J, B, steps, T, M, N))
+    plt.title('type:{}, J={}, B={}, ev_steps={}, no. atoms={}'.format(lattice_type, J, B, steps, M*N))
 
     time_elapsed = (time.perf_counter() - time_start)
     print ("checkpoint %5.1f secs" % (time_elapsed))
