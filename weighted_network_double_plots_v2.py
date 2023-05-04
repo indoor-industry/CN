@@ -12,21 +12,23 @@ lattice_type = 'triangular'             #write square, triangular or hexagonal
 J = 1                            #spin coupling constant
 
 Tc = (2*abs(J))/np.log(1+np.sqrt(2))         #Onsager critical temperature for square lattice
+Tc_h = 2/np.log(2 + np.sqrt(3))
+Tc_t = 4 / np.log(3)  
 print(Tc)
 
-T_sample = 30
-B_sample = 10
+T_sample = 5
+B_sample = 5
 
-B_min = 0
-B_max = 0.4
+B_min = 0.5
+B_max = 2.0
 B = np.linspace(B_min, B_max, B_sample)                     #external magnetic field
 
-M = 10                              #lattice size MxN
+M = 10                             #lattice size MxN
 N = 10
-steps = 20000                        #number of evolution steps per given temperature
+steps = 15000                        #number of evolution steps per given temperature
 
-T_min = 0.7*Tc
-T_max = 1.5*Tc
+T_min = 0.5*Tc_t
+T_max = 2.0*Tc_t
 T = np.linspace(T_min, T_max, T_sample)
 
 ones = np.ones(len(T))
@@ -168,7 +170,7 @@ def main():
                    
         print(r)
 
-    ext = [T_min/Tc, T_max/Tc, B_min, B_max]
+    ext = [T_min/Tc_t, T_max/Tc_t, B_min, B_max]
     
     fig = plt.figure(figsize=(15, 15))
     ax1 = fig.add_subplot(2, 2, 1)
