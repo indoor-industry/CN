@@ -6,21 +6,25 @@ from numba import jit
 
 time_start = time.perf_counter()
 
-lattice_type = 'square'            #write square, triangular or hexagonal
+lattice_type = 'hexagonal'            #write square, triangular or hexagonal
 J = 1                           #spin coupling
-M = 10                             #lattice size MxN
-N = 10
-steps = 30000                         #number of timesteps of evolution per given temperature
-B_sample = 5                        #number of samples between minimum and maximum values of B NEEDS TO BE ODD FOR SENSIBLE RESULTS
-T_sample = 20                        #number of samples between minimum and maximum values of T
-eq_steps = 20000
+M = 18                           #lattice size MxN
+N = 18
+steps = 15000                         #number of timesteps of evolution per given temperature
+B_sample = 5                       #number of samples between minimum and maximum values of B NEEDS TO BE ODD FOR SENSIBLE RESULTS
+T_sample = 5                        #number of samples between minimum and maximum values of T
+eq_steps = 10000
 Tc = (2*abs(J))/np.log(1+np.sqrt(2))         #Onsager critical temperature for square lattice
+Tc = (2*abs(J))/np.log(1+np.sqrt(2))        #Critical temperature
+Tc_h = 2/np.log(2 + np.sqrt(3))             #Critical temperature of hexagonal lattic  at J = 1
+Tc_t = 4 / np.log(3)                       #Critical temperature of triangular lattice at J = 1 
 
-T_min = 0.5*Tc                        #min temperature to explore
-T_max = 1.5*Tc                        #max temperature to explore
 
-B_min = 0                         #min magnetic field to explore
-B_max = 0.5                          #max magnetic field to explore
+T_min = 0.5*Tc_h                        #min temperature to explore
+T_max = 2*Tc_h                        #max temperature to explore
+
+B_min = 0.5                         #min magnetic field to explore
+B_max = 2.0                          #max magnetic field to explore
 
 T = np.linspace(T_min, T_max, T_sample)   #temperature range to explore
 
@@ -128,7 +132,7 @@ def main():
     #np.savetxt("M.csv", M_beta_J/n, delimiter=",")
 
     #plot
-    ext = [T_min/Tc, T_max/Tc, B_min, B_max]
+    ext = [T_min/Tc_h, T_max/Tc_h, B_min, B_max]
     
     fig = plt.figure(figsize=(15, 15))
     ax1 = fig.add_subplot(2, 2, 1)
