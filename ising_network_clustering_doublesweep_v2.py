@@ -7,9 +7,9 @@ from numba import jit
 
 time_start = time.perf_counter()
 
-lattice_type = 'hexagonal'            #write square, triangular or hexagonal
-M = 20
-N = 20
+lattice_type = 'triangular'            #write square, triangular or hexagonal
+M = 10
+N = 10
 J = 1
 steps = 20000
 
@@ -22,10 +22,10 @@ print(Tc)
 T_sample = 5
 B_sample = 5
 
-T_min = 0.5*Tc_h                        #min temperature to explore
-T_max = 1.5*Tc_h                    #max temperature to explore
+T_min = 0.5*Tc_t                      #min temperature to explore
+T_max = 2*Tc_t                   #max temperature to explore
 
-B_min = 0                         #min magnetic field to explore
+B_min = 0.5                         #min magnetic field to explore
 B_max = 2                          #max magnetic field to explore
 
 T = np.linspace(T_min, T_max, T_sample)   #temperature range to explore
@@ -137,7 +137,7 @@ def main():
             G2 = nx.from_scipy_sparse_array(sparse.csr_matrix(A_clust)) #G2 only hasa the relevant edges
 
             den = nx.density(G2)
-            btw = nx.betweenness_centrality(G2).get(7)
+            btw = nx.betweenness_centrality(G2).get(35)
 
             den_beta_J[i, j] = den          #store density values
             btw_cen_beta_J[i, j] = btw
@@ -147,7 +147,7 @@ def main():
     time_elapsed = (time.perf_counter() - time_start)
     print ("checkpoint 1 %5.1f secs" % (time_elapsed))
 
-    ext = [T_min/Tc_h, T_max/Tc_h, B_min, B_max]
+    ext = [T_min/Tc_t, T_max/Tc_t, B_min, B_max]
 
     fig = plt.figure(figsize=(15, 15))
     ax1 = fig.add_subplot(2, 2, 1)
@@ -155,13 +155,13 @@ def main():
     
     fig.suptitle('{}, size {}x{}, J={}, ev_steps={}'.format(lattice_type, M, N, J, steps))
     
-    im1 = ax1.imshow(den_beta_J, cmap = 'binary', origin='lower', extent=ext, aspect='auto', interpolation='spline36')
+    im1 = ax1.imshow(den_beta_J, cmap = 'Reds', origin='lower', extent=ext, aspect='auto', interpolation='spline36')
     ax1.set_title('Density')
     fig.colorbar(im1, ax=ax1)
     ax1.set_ylabel('B')
     ax1.set_xlabel('T/Tc')
     
-    im2 = ax2.imshow(btw_cen_beta_J, cmap = 'binary', origin='lower', extent=ext, aspect='auto', interpolation='spline36')
+    im2 = ax2.imshow(btw_cen_beta_J, cmap = 'Reds', origin='lower', extent=ext, aspect='auto', interpolation='spline36')
     ax2.set_title('Betweeness')
     fig.colorbar(im2, ax=ax2)
     ax2.set_ylabel('B')
