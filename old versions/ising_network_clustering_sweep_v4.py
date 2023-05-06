@@ -18,7 +18,7 @@ steps_to_eq = 20000
 Tc = (2*abs(J))/np.log(1+np.sqrt(2))         #Onsager critical temperature for square lattice
 print(Tc)
 
-T = np.linspace(1, 4, 30)
+T = np.linspace(1, 4, 10)
 ones = np.ones(len(T))
 beta = ones/T
 
