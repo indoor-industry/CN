@@ -9,17 +9,17 @@ from numba import jit
 time_start = time.perf_counter()
 
 k_b = 8.617333262e-5
-lattice_type = 'ER'            #write square, triangular or hexagonal
+lattice_type = 'square'            #write square, triangular or hexagonal
 J = 1                        #spin coupling constant
 B = 0                     #external magnetic field
 M = 10                          #lattice size MxN
 N = 10
-steps = 20000                      #number of evolution steps per given temperature
+steps = 30000                      #number of evolution steps per given temperature
 repeat = 20
 
 Tc = (2*abs(J))/np.log(1+np.sqrt(2))        #Critical temperature
 Tc_h = 2/np.log(2 + np.sqrt(3))             #Critical temperature of hexagonal lattic  at J = 1
-Tc_t = 4 / np.sqrt(3)                       #Critical temperature of triangular lattice at J = 1 
+Tc_t = 4 / np.log(3)                       #Critical temperature of triangular lattice at J = 1 
 
 if lattice_type == "square":
     T = np.linspace(0.5*Tc, 1.5*Tc, 20) 

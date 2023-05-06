@@ -3,50 +3,39 @@ import matplotlib.pyplot as plt
 import numpy as np
 import time
 from numba import jit
+import scipy as sp
 
 time_start = time.perf_counter()
 
-k_b = 8.617333262e-5
-lattice_type = 'ER'  # write square, triangular or hexagonal, ER
 J = 1  # spin coupling constant
 B = 0  # external magnetic field
 M = 10  # lattice size MxN
 N = 10
-steps = 15000  # number of evolution steps per given temperature
-steps_to_eq = 10000  # steps until equilibrium is reached
-repeat = 1  # number of trials per temperature to average over
+steps = 30000  # number of evolution steps per given temperature
+steps_to_eq = 20000  # steps until equilibrium is reached
+repeat = 10  # number of trials per temperature to average over
 nbstrap = 1000
 
-lenth_p_sweep = np.linspace(1/(N*M), 4/(N*M), 4)  # 0.5 1 2.5 2
+lenth_p_sweep = np.arange(1/(N*M), 10/(N*M), 1/(M*N))
+print(lenth_p_sweep)
 
-Tc = (2*abs(J))/np.log(1+np.sqrt(2))  # Critical temperature
-# Critical temperature of hexagonal lattic  at J = 1
-Tc_h = 2/np.log(2 + np.sqrt(3))
-Tc_t = 4 / np.sqrt(3)  # Critical temperature of triangular lattice at J = 1
-
-
-T = np.linspace(0.4*Tc, 2*Tc, 20)
+T = np.linspace(0.5, 5, 20)
 ones = np.ones(len(T))
 beta = ones/(T)
 
 # function creates lattice
-
-
 def lattice(M, N, p):
     lattice = nx.erdos_renyi_graph(M*N, p, seed=None, directed=False)
     return lattice
 
 # count number of sites in lattice
-
-
 def num(G):
     n = 0
     for node in G:
         n += 1
     return n
 
-
-@jit(nopython=True, nogil=True)
+@jit(nopython=True)
 def step(A_dense, beta, num):
 
     def mean_square(data):
@@ -106,11 +95,9 @@ def step(A_dense, beta, num):
                 nnsum = np.sum(A, axis=1)
 
                 # What decides the flip is
-                dE = 2*J*np.multiply(nnsum, spinlist) + \
-                    2*B*spinlist  # change in energy
+                dE = 2*J*np.multiply(nnsum, spinlist) + 2*B*spinlist  # change in energy
 
-                E = -J*sum(np.multiply(nnsum, spinlist)) - \
-                    B*sum(spinlist)  # total energy
+                E = -J*sum(np.multiply(nnsum, spinlist)) - B*sum(spinlist)  # total energy
                 M = np.sum(spinlist)  # total magnetisation
 
                 # change spins if energetically favourable or according to thermal noise
@@ -181,26 +168,22 @@ def step(A_dense, beta, num):
 
     return E_beta, M_beta, cv_beta, xi_beta, num
 
-
 def main():
     cv_array = []
     xi_array = []
     m_array = []
-
     for p in lenth_p_sweep:
         # create lattice
         G = lattice(M, N, p)
 
         # convert node labels to integers
-        G = nx.convert_node_labels_to_integers(
-            G, first_label=0, ordering='default', label_attribute=None)
+        G = nx.convert_node_labels_to_integers(G, first_label=0, ordering='default', label_attribute=None)
 
         # get number of nodes
         n = num(G)
 
         # extract adjacency matrix and convert to numpy dense array
-        Adj = nx.adjacency_matrix(
-            G, nodelist=None, dtype=None, weight='weight')
+        Adj = nx.adjacency_matrix(G, nodelist=None, dtype=None, weight='weight')
         A_dense = Adj.todense()
 
         # iterate steps and sweep trough beta
@@ -210,7 +193,27 @@ def main():
         xi_array.append(xi_beta)
         m_array.append(M_beta)
 
-    print(len(cv_array))
+    print(xi_array)
+
+    critical = []
+    for a in range(len(lenth_p_sweep)):
+        critical_index = xi_array[a].argmax(axis=0)
+        critical_temp = T[critical_index]
+        critical.append(critical_temp)
+
+    print(critical)
+    
+    line = sp.stats.linregress(lenth_p_sweep, critical)
+    slope = line[0]
+    intercept = line[1]
+
+    plt.scatter(lenth_p_sweep, critical, label='simulated')
+    plt.plot(lenth_p_sweep, slope*lenth_p_sweep+intercept, label='fit')
+    plt.title('Critical temperature')
+    plt.xlabel('p')
+    plt.ylabel('Tc')
+    plt.legend()
+    plt.show()
 
     # for normalization purposes
     n_normalize = n*np.ones(len(E_beta))
@@ -218,23 +221,20 @@ def main():
     time_elapsed = (time.perf_counter() - time_start)
     print("checkpoint %5.1f secs" % (time_elapsed))
 
-    # plot Energy and magnetisation per site as a function of temperature
+    #plot magnetisation for different p's
     fig = plt.figure()
     ax1 = fig.add_subplot(111)
     # ax2 = fig.add_subplot(2, 2, 2)
     # ax3 = fig.add_subplot(2, 2, 3)
     # ax4 = fig.add_subplot(2, 2, 4)
-    ax1.scatter(T, m_array[0]/n_normalize, color='orange',
-                label='p={}/N*M'.format(round(lenth_p_sweep[0]*N*M)))
-    ax1.scatter(T, m_array[1]/n_normalize, color='blue',
-                label='p={}/N*M'.format(round(lenth_p_sweep[1]*N*M)))
-    ax1.scatter(T, m_array[2]/n_normalize, color='green',
-                label='p={}/N*M'.format(round(lenth_p_sweep[2]*N*M)))
-    ax1.scatter(T, m_array[3]/n_normalize, color='black',
-                label='p={}/N*M'.format(round(lenth_p_sweep[3]*N*M)))
+    ax1.plot(T, m_array[0]/n_normalize, color='orange', label='p={}/N*M'.format(round(lenth_p_sweep[0]*N*M)))
+    ax1.plot(T, m_array[1]/n_normalize, color='blue', label='p={}/N*M'.format(round(lenth_p_sweep[1]*N*M)))
+    ax1.plot(T, m_array[2]/n_normalize, color='green', label='p={}/N*M'.format(round(lenth_p_sweep[2]*N*M)))
+    ax1.plot(T, m_array[3]/n_normalize, color='black', label='p={}/N*M'.format(round(lenth_p_sweep[3]*N*M)))
     ax1.set_ylabel('$<\sqrt{|M^2|}>$')
-    ax1.set_xlabel('T/Tc_square')
+    ax1.set_xlabel('T')
     fig.tight_layout()
+    plt.legend()
     plt.show()
 
     # plot Energy and magnetisation per site as a function of temperature
@@ -243,54 +243,25 @@ def main():
     ax2 = fig.add_subplot(2, 2, 2)
     ax3 = fig.add_subplot(2, 2, 3)
     ax4 = fig.add_subplot(2, 2, 4)
-    ax1.scatter(T/Tc, xi_array[0]/n_normalize, color='orange')
+    ax1.scatter(T, xi_array[0]/n_normalize, color='orange')
     ax1.set_ylabel('$\Xi$')
     ax1.set_xlabel('T/Tc_square')
     ax1.set_title('{}/N*M'.format(round(lenth_p_sweep[0]*N*M), 2))
-    ax2.scatter(T/Tc, xi_array[1]/n_normalize, color='blue')
+    ax2.scatter(T, xi_array[1]/n_normalize, color='blue')
     ax2.set_ylabel('$\Xi$')
     ax2.set_xlabel('T/Tc_square')
     ax2.set_title('{}/N*M'.format(round(lenth_p_sweep[1]*N*M, 2)))
-    ax3.scatter(T/Tc, xi_array[2]/n_normalize, color='green')
+    ax3.scatter(T, xi_array[2]/n_normalize, color='green')
     ax3.set_ylabel('$\Xi$')
     ax3.set_xlabel('T/Tc_square')
     ax3.set_title('{}/N*M'.format(round(lenth_p_sweep[2]*N*M, 2)))
-    ax4.scatter(T/Tc, xi_array[3]/n_normalize, color='black')
+    ax4.scatter(T, xi_array[3]/n_normalize, color='black')
     ax4.set_ylabel('$\Xi$')
     ax4.set_xlabel('T/Tc_square')
     ax4.set_title('{}/N*M'.format(round(lenth_p_sweep[3]*N*M, 2)))
-    fig.suptitle('{} no.atoms={}  B={} J={}, ev_steps={}, samples/T={}'.format(
-        lattice_type, n, B, J, steps, repeat))
+    fig.suptitle('ER no.atoms={}  B={} J={}, ev_steps={}, samples/T={}'.format(n, B, J, steps, repeat))
     fig.tight_layout()
     plt.show()
-
-    # plot Energy and magnetisation per site as a function of temperature
-    fig = plt.figure()
-    ax1 = fig.add_subplot(2, 2, 1)
-    ax2 = fig.add_subplot(2, 2, 2)
-    ax3 = fig.add_subplot(2, 2, 3)
-    ax4 = fig.add_subplot(2, 2, 4)
-    ax1.scatter(T, m_array[0]/n_normalize, color='orange')
-    ax1.set_ylabel('$<\sqrt{|M^2|}>$')
-    ax1.set_xlabel('T')
-    ax1.set_title('p={}/N*M'.format(round(lenth_p_sweep[0]*N*M), 2))
-    ax2.scatter(T, m_array[1]/n_normalize, color='blue')
-    ax2.set_ylabel('$<\sqrt{|M^2|}>$')
-    ax2.set_xlabel('T')
-    ax2.set_title('p={}/N*M'.format(round(lenth_p_sweep[1]*N*M, 2)))
-    ax3.scatter(T, m_array[2]/n_normalize, color='green')
-    ax3.set_ylabel('$<\sqrt{|M^2|}>$')
-    ax3.set_xlabel('T')
-    ax3.set_title('p={}/N*M'.format(round(lenth_p_sweep[2]*N*M, 2)))
-    ax4.scatter(T, m_array[3]/n_normalize, color='black')
-    ax4.set_ylabel('$<\sqrt{|M^2|}>$')
-    ax4.set_xlabel('T')
-    ax4.set_title('p={}/N*M'.format(round(lenth_p_sweep[3]*N*M, 2)))
-    fig.suptitle('{} no.atoms={}  B={} J={}, ev_steps={}, samples/T={}'.format(
-        lattice_type, n, B, J, steps, repeat))
-    fig.tight_layout()
-    plt.show()
-
 
 if __name__ == "__main__":
     main()

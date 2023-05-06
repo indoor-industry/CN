@@ -12,7 +12,8 @@ lattice_type = 'triangular'             #write square, triangular or hexagonal
 J = 1                            #spin coupling constant
 
 Tc = (2*abs(J))/np.log(1+np.sqrt(2))         #Onsager critical temperature for square lattice
-print(Tc)
+Tc_h = 2/np.log(2 + np.sqrt(3))             #Critical temperature of hexagonal lattic  at J = 1
+Tc_t = 4 / np.log(3)                       #Critical temperature of triangular lattice at J = 1 
 
 T_sample = 30
 B_sample = 10

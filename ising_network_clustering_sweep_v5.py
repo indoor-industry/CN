@@ -17,7 +17,7 @@ repeat = 20
 
 Tc = (2*abs(J))/np.log(1+np.sqrt(2))        #Critical temperature
 Tc_h = 2/np.log(2 + np.sqrt(3))             #Critical temperature of hexagonal lattic  at J = 1
-Tc_t = 4 / np.sqrt(3)                       #Critical temperature of triangular lattice at J = 1 
+Tc_t = 4 / np.log(3)                       #Critical temperature of triangular lattice at J = 1 
 
 if lattice_type == "square":
     T = np.linspace(0.5*Tc, 1.5*Tc, 20) 
@@ -25,7 +25,7 @@ elif lattice_type == "hexagonal":
     T = np.linspace(0.5*Tc_h, 1.5*Tc_h, 20) 
     Tc = Tc_h
 elif lattice_type == "triangular":
-    T = np.linspace(0.5*Tc_t, 2*Tc_t, 20) 
+    T = np.linspace(0.5*Tc_t, 1.5*Tc_t, 20) 
     Tc = Tc_t
 elif lattice_type == "ER":
     T = np.linspace(1, 3.5, 20) 
