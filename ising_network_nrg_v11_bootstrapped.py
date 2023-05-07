@@ -10,11 +10,11 @@ k_b = 8.617333262e-5
 lattice_type = 'square'            #write square, triangular or hexagonal, ER
 J = 1                       #spin coupling constant
 B = 0                       #external magnetic field
-M = 10                      #lattice size MxN
-N = 10
+M = 5                      #lattice size MxN
+N = 5
 steps = 30000                      #number of evolution steps per given temperature
 steps_to_eq = 20000                   #steps until equilibrium is reached
-repeat = 100                     #number of trials per temperature to average over
+repeat = 10                     #number of trials per temperature to average over
 nbstrap = 1000
 
 Tc = (2*abs(J))/np.log(1+np.sqrt(2))        #Critical temperature

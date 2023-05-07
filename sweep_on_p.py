@@ -207,7 +207,7 @@ def main():
 
     critical = []
     for a in range(len(lenth_p_sweep)):
-        critical_index = xi_array[a].argmax(axis=0)
+        critical_index = cv_array[a].argmax(axis=0)
         critical_temp = T[critical_index]
         critical.append(critical_temp)
 
