@@ -7,9 +7,9 @@ from numba import jit
 
 time_start = time.perf_counter()
 
-lattice_type = 'hexagonal'            #write square, triangular or hexagonal
-M = 8
-N = 6
+lattice_type = 'ER'            #write square, triangular or hexagonal
+M = 10
+N = 10
 J = 1
 B = 0
 steps = 30000
@@ -28,7 +28,7 @@ elif lattice_type == "triangular":
     T = np.linspace(0.5*Tc_t, 1.5*Tc_t, 20) 
     Tc = Tc_t
 elif lattice_type == "ER":
-    T = np.linspace(1, 3.5, 20) 
+    T = np.linspace(2, 4, 20) 
     Tc = 1
 else: print("Errore!")
 
