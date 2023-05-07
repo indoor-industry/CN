@@ -6,13 +6,13 @@ from numba import jit
 
 time_start = time.perf_counter()
 
-lattice_type = 'ER'              #write square, triangular or hexagonal
-p = 0.03
+lattice_type = 'square'              #write square, triangular or hexagonal
+p = 0.04
 
 J = 1                             #spin coupling constant
 B = 0                                #external magnetic field
-M = 20                               #lattice size MxN
-N = 20
+M = 10                               #lattice size MxN
+N = 10
 steps = 30000                         #number of evolution steps per given temperature
 max_r = 10
 repeat = 1
@@ -30,7 +30,7 @@ elif lattice_type == "triangular":
     T = np.linspace(0.5*Tc_t, 1.5*Tc_t, 10) 
     Tc = Tc_t
 elif lattice_type == "ER":
-    T = np.linspace(4, 9, 10) 
+    T = np.linspace(1, 5, 10) 
     Tc = 1
 else: print("Errore!")
 
@@ -38,17 +38,13 @@ else: print("Errore!")
 def lattice(M, N):
     if lattice_type == 'hexagonal':
         lattice = nx.hexagonal_lattice_graph(M, N, periodic=True, with_positions=True, create_using=None)
-        return lattice, 3
     elif lattice_type == 'triangular':
         lattice = nx.triangular_lattice_graph(M, N, periodic=True, with_positions=True, create_using=None)
-        return lattice, 6
     elif lattice_type == 'square':
         lattice = nx.grid_2d_graph(M, N, periodic=True, create_using=None)
-        return lattice, 4
     elif lattice_type == 'ER':
         lattice = nx.erdos_renyi_graph(M*N, p, seed=None, directed=False)
-        return lattice, 0.5*(num(lattice)-1)*p          #true only for large number of edges
-    #return lattice
+    return lattice
 
 #count number of sites in lattice
 def num(G):
@@ -62,11 +58,23 @@ def distances(num, spl):
     for i in range(num):
         dictionary_per_node_i = spl[i][1]                   #returns an nxn matrix, element m,n is the distance between node m and node n
         for j in range(num):
-            lenghts[i, j] = dictionary_per_node_i[j]
+            if j in dictionary_per_node_i.keys():           #for ER graphs some atoms may be disconnected, they shoud not count
+                lenghts[i, j] = dictionary_per_node_i[j]
+            else:
+                lenghts[i, j] = max_r+100                   #set isolated atoms at a distance that will not be exlored (i.e. above max_r)
     return lenghts
 
+def neighbour_number(lenghts, num):                         #returns array max_r x num where element radius, n is the number of atoms at a distance radius from atom n
+    nn = np.zeros((max_r, num))
+    for radius in range(max_r):
+        for atom in range(num):
+            for neighbour in range(num):
+                if lenghts[atom, neighbour] == radius:
+                    nn[radius, atom] += 1
+    return nn
+
 @jit(nopython=True)
-def step(A_dense, beta, num, nn_number, lenghts, spinlist):
+def step(A_dense, beta, num, lenghts, spinlist, neighnum):
     
     corr_repeats = np.empty((repeat, max_r))
     corr_r = np.zeros(max_r)
@@ -98,18 +106,24 @@ def step(A_dense, beta, num, nn_number, lenghts, spinlist):
             l+=1
 
         r = []
+        corr=0
+        mean=0
         for radius in range(max_r):
-            corr=0
+            #corr=0
+            #mean=0
             for atom in range(num):
-                mean = 0
+                #mean = 0
                 for neighbour in range(num):
-                    if lenghts[atom, neighbour] == radius:
+                    if lenghts[atom, neighbour] <= radius:
                         corr += (spinlist[atom]*spinlist[neighbour])    #measures correlation for a given distance
-                        mean += spinlist[neighbour]                
+                        mean += spinlist[neighbour]
                 if radius == 0:
-                    corr2 = corr
-                else:    
-                    corr2 = corr/(nn_number*radius)-mean**2/(nn_number*radius)**2
+                    corr2 = corr                                        #only neighbour at distance zero is the atom itself
+                else:
+                    if neighnum[radius, atom] == 0:                     #avoid dividing by zero if there are no atoms at a certain distance, these are border effects
+                        corr2 = 0
+                    else:
+                        corr2 = corr/(neighnum[radius, atom])-mean**2/(neighnum[radius, atom])**2
             corr3 = corr2/num
             r.append(radius)                        
             corr_repeats[rep][radius] = abs(corr3)
@@ -125,7 +139,7 @@ def step(A_dense, beta, num, nn_number, lenghts, spinlist):
 def main():
 
     #create lattice
-    G, nn_number = lattice(M, N)
+    G = lattice(M, N)
     #convert node labels to integers
     G = nx.convert_node_labels_to_integers(G, first_label=0, ordering='default', label_attribute=None)
     #get number of nodes
@@ -139,19 +153,23 @@ def main():
 
     lenghts = distances(n, spl)
     
-    rand_spin = np.random.choice(np.array([1, -1]), n)   #create random spins for nodes
+    neigh_num = neighbour_number(lenghts, n)
+    #print(neigh_num)
+
+
+    rand_spin = np.random.choice(np.array([1, 1]), n)   #create random spins for nodes
     for j in range(len(T)):
 
         spinlist = np.copy(rand_spin)
 
         #iterate steps and sweep trough beta
-        corr_r, r = step(A_dense, 1/T[j], n, nn_number, lenghts, spinlist)
+        corr_r, r = step(A_dense, 1/T[j], n, lenghts, spinlist, neigh_num)
 
         plt.plot(r, corr_r, label=f'T={T[j]:.2f}')
         print(j)
     
     plt.xlabel('node distance r')
-    plt.ylabel('<$\sigma(i)\sigma(i+r)$>')
+    plt.ylabel('$<\sigma(i)\sigma(i+r)> - {<\sigma(i)>}^2$')
     plt.legend()
     plt.title('type:{}, J={}, B={}, ev_steps={}, no. atoms={}, p={}'.format(lattice_type, J, B, steps, M*N, p))
 

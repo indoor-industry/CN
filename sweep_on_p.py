@@ -19,7 +19,7 @@ nbstrap = 1000
 lenth_p_sweep = np.arange(1/(N*M), 10/(N*M), 1/(M*N))
 print(lenth_p_sweep)
 
-T = np.linspace(0.5, 5, 20)
+T = np.linspace(0.5, 8, 30)
 ones = np.ones(len(T))
 beta = ones/(T)
 
@@ -172,6 +172,7 @@ def main():
     cv_array = []
     xi_array = []
     m_array = []
+    E_array = []
     for p in lenth_p_sweep:
         # create lattice
         G = lattice(M, N, p)
@@ -189,11 +190,10 @@ def main():
         # iterate steps and sweep trough beta
         E_beta, M_beta, cv_beta, xi_beta, n = step(A_dense, beta, n)
 
+        E_array.append(E_beta)
         cv_array.append(cv_beta)
         xi_array.append(xi_beta)
         m_array.append(M_beta)
-
-    print(xi_array)
 
     critical = []
     for a in range(len(lenth_p_sweep)):
@@ -202,17 +202,18 @@ def main():
         critical.append(critical_temp)
 
     print(critical)
-    
-    line = sp.stats.linregress(lenth_p_sweep, critical)
-    slope = line[0]
-    intercept = line[1]
+    np.savetxt("psweep_Tc.csv", critical, delimiter=",")
+    np.savetxt("psweep_p.csv", lenth_p_sweep, delimiter=",")
 
-    plt.scatter(lenth_p_sweep, critical, label='simulated')
-    plt.plot(lenth_p_sweep, slope*lenth_p_sweep+intercept, label='fit')
-    plt.title('Critical temperature')
+    #line = sp.stats.linregress(lenth_p_sweep, critical)
+    #slope = line[0]
+    #intercept = line[1]
+
+    plt.scatter(lenth_p_sweep, critical)
+    #plt.plot(lenth_p_sweep, slope*lenth_p_sweep+intercept, label='fit')
+    plt.title('ER Critical temperature')
     plt.xlabel('p')
     plt.ylabel('Tc')
-    plt.legend()
     plt.show()
 
     # for normalization purposes
@@ -223,42 +224,99 @@ def main():
 
     #plot magnetisation for different p's
     fig = plt.figure()
-    ax1 = fig.add_subplot(111)
-    # ax2 = fig.add_subplot(2, 2, 2)
-    # ax3 = fig.add_subplot(2, 2, 3)
-    # ax4 = fig.add_subplot(2, 2, 4)
+    ax1 = fig.add_subplot(2, 1, 1)
+    ax2 = fig.add_subplot(2, 1, 2)
+    
     ax1.plot(T, m_array[0]/n_normalize, color='orange', label='p={}/N*M'.format(round(lenth_p_sweep[0]*N*M)))
     ax1.plot(T, m_array[1]/n_normalize, color='blue', label='p={}/N*M'.format(round(lenth_p_sweep[1]*N*M)))
     ax1.plot(T, m_array[2]/n_normalize, color='green', label='p={}/N*M'.format(round(lenth_p_sweep[2]*N*M)))
     ax1.plot(T, m_array[3]/n_normalize, color='black', label='p={}/N*M'.format(round(lenth_p_sweep[3]*N*M)))
+    ax1.plot(T, m_array[4]/n_normalize, color='purple', label='p={}/N*M'.format(round(lenth_p_sweep[4]*N*M)))
+    ax1.plot(T, m_array[5]/n_normalize, color='yellow', label='p={}/N*M'.format(round(lenth_p_sweep[5]*N*M)))
     ax1.set_ylabel('$<\sqrt{|M^2|}>$')
     ax1.set_xlabel('T')
+
+    ax2.plot(T, E_array[0]/n_normalize, color='orange', label='p={}/N*M'.format(round(lenth_p_sweep[0]*N*M)))
+    ax2.plot(T, E_array[1]/n_normalize, color='blue', label='p={}/N*M'.format(round(lenth_p_sweep[1]*N*M)))
+    ax2.plot(T, E_array[2]/n_normalize, color='green', label='p={}/N*M'.format(round(lenth_p_sweep[2]*N*M)))
+    ax2.plot(T, E_array[3]/n_normalize, color='black', label='p={}/N*M'.format(round(lenth_p_sweep[3]*N*M)))
+    ax2.plot(T, E_array[4]/n_normalize, color='purple', label='p={}/N*M'.format(round(lenth_p_sweep[4]*N*M)))
+    ax2.plot(T, E_array[5]/n_normalize, color='yellow', label='p={}/N*M'.format(round(lenth_p_sweep[5]*N*M)))
+    ax2.set_ylabel('$E/node$')
+    ax2.set_xlabel('T')
+
     fig.tight_layout()
     plt.legend()
     plt.show()
 
     # plot Energy and magnetisation per site as a function of temperature
     fig = plt.figure()
-    ax1 = fig.add_subplot(2, 2, 1)
-    ax2 = fig.add_subplot(2, 2, 2)
-    ax3 = fig.add_subplot(2, 2, 3)
-    ax4 = fig.add_subplot(2, 2, 4)
+    ax1 = fig.add_subplot(2, 3, 1)
+    ax2 = fig.add_subplot(2, 3, 2)
+    ax3 = fig.add_subplot(2, 3, 3)
+    ax4 = fig.add_subplot(2, 3, 4)
+    ax5 = fig.add_subplot(2, 3, 5)
+    ax6 = fig.add_subplot(2, 3, 6)
     ax1.scatter(T, xi_array[0]/n_normalize, color='orange')
     ax1.set_ylabel('$\Xi$')
-    ax1.set_xlabel('T/Tc_square')
+    ax1.set_xlabel('T')
     ax1.set_title('{}/N*M'.format(round(lenth_p_sweep[0]*N*M), 2))
     ax2.scatter(T, xi_array[1]/n_normalize, color='blue')
     ax2.set_ylabel('$\Xi$')
-    ax2.set_xlabel('T/Tc_square')
+    ax2.set_xlabel('T')
     ax2.set_title('{}/N*M'.format(round(lenth_p_sweep[1]*N*M, 2)))
     ax3.scatter(T, xi_array[2]/n_normalize, color='green')
     ax3.set_ylabel('$\Xi$')
-    ax3.set_xlabel('T/Tc_square')
+    ax3.set_xlabel('T')
     ax3.set_title('{}/N*M'.format(round(lenth_p_sweep[2]*N*M, 2)))
     ax4.scatter(T, xi_array[3]/n_normalize, color='black')
     ax4.set_ylabel('$\Xi$')
-    ax4.set_xlabel('T/Tc_square')
+    ax4.set_xlabel('T')
     ax4.set_title('{}/N*M'.format(round(lenth_p_sweep[3]*N*M, 2)))
+    ax5.scatter(T, xi_array[4]/n_normalize, color='purple')
+    ax5.set_ylabel('$\Xi$')
+    ax5.set_xlabel('T')
+    ax5.set_title('{}/N*M'.format(round(lenth_p_sweep[4]*N*M, 2)))
+    ax6.scatter(T, xi_array[5]/n_normalize, color='yellow')
+    ax6.set_ylabel('$\Xi$')
+    ax6.set_xlabel('T')
+    ax6.set_title('{}/N*M'.format(round(lenth_p_sweep[5]*N*M, 2)))
+    fig.suptitle('ER no.atoms={}  B={} J={}, ev_steps={}, samples/T={}'.format(n, B, J, steps, repeat))
+    fig.tight_layout()
+    plt.show()
+
+
+    fig = plt.figure()
+    ax1 = fig.add_subplot(2, 3, 1)
+    ax2 = fig.add_subplot(2, 3, 2)
+    ax3 = fig.add_subplot(2, 3, 3)
+    ax4 = fig.add_subplot(2, 3, 4)
+    ax5 = fig.add_subplot(2, 3, 5)
+    ax6 = fig.add_subplot(2, 3, 6)
+    ax1.scatter(T, cv_array[0]/n_normalize, color='orange')
+    ax1.set_ylabel('$C_v$')
+    ax1.set_xlabel('T')
+    ax1.set_title('{}/N*M'.format(round(lenth_p_sweep[0]*N*M), 2))
+    ax2.scatter(T, cv_array[1]/n_normalize, color='blue')
+    ax2.set_ylabel('$C_v$')
+    ax2.set_xlabel('T')
+    ax2.set_title('{}/N*M'.format(round(lenth_p_sweep[1]*N*M, 2)))
+    ax3.scatter(T, cv_array[2]/n_normalize, color='green')
+    ax3.set_ylabel('$C_v$')
+    ax3.set_xlabel('T')
+    ax3.set_title('{}/N*M'.format(round(lenth_p_sweep[2]*N*M, 2)))
+    ax4.scatter(T, cv_array[3]/n_normalize, color='black')
+    ax4.set_ylabel('$C_v$')
+    ax4.set_xlabel('T')
+    ax4.set_title('{}/N*M'.format(round(lenth_p_sweep[3]*N*M, 2)))
+    ax5.scatter(T, cv_array[4]/n_normalize, color='purple')
+    ax5.set_ylabel('$C_v$')
+    ax5.set_xlabel('T')
+    ax5.set_title('{}/N*M'.format(round(lenth_p_sweep[4]*N*M, 2)))
+    ax6.scatter(T, cv_array[5]/n_normalize, color='yellow')
+    ax6.set_ylabel('$C_v$')
+    ax6.set_xlabel('T')
+    ax6.set_title('{}/N*M'.format(round(lenth_p_sweep[5]*N*M, 2)))
     fig.suptitle('ER no.atoms={}  B={} J={}, ev_steps={}, samples/T={}'.format(n, B, J, steps, repeat))
     fig.tight_layout()
     plt.show()

@@ -7,22 +7,22 @@ from numba import jit
 
 time_start = time.perf_counter()
 
-lattice_type = 'square'            #write square, triangular or hexagonal
-M = 10
-N = 10
+lattice_type = 'hexagonal'            #write square, triangular or hexagonal
+M = 8
+N = 6
 J = 1
 B = 0
-steps = 15000
-repeat = 1
+steps = 30000
+repeat = 100
 
 Tc = (2*abs(J))/np.log(1+np.sqrt(2))        #Critical temperature
 Tc_h = 2/np.log(2 + np.sqrt(3))             #Critical temperature of hexagonal lattic  at J = 1
 Tc_t = 4 / np.log(3)                       #Critical temperature of triangular lattice at J = 1 
 
 if lattice_type == "square":
-    T = np.linspace(0.5*Tc, 2*Tc, 20) 
+    T = np.linspace(0.5*Tc, 1.5*Tc, 20) 
 elif lattice_type == "hexagonal":
-    T = np.linspace(0.5*Tc_h, 2*Tc_h, 20) 
+    T = np.linspace(0.5*Tc_h, 1.5*Tc_h, 20) 
     Tc = Tc_h
 elif lattice_type == "triangular":
     T = np.linspace(0.5*Tc_t, 1.5*Tc_t, 20) 
