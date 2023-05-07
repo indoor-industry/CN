@@ -9,7 +9,7 @@ from numba import jit
 time_start = time.perf_counter()
 
 k_b = 8.617333262e-5
-lattice_type = 'square'            #write square, triangular or hexagonal
+lattice_type = 'ER'            #write square, triangular or hexagonal
 J = 1                        #spin coupling constant
 B = 0                     #external magnetic field
 M = 10                          #lattice size MxN
@@ -30,7 +30,7 @@ elif lattice_type == "triangular":
     T = np.linspace(0.5*Tc_t, 1.5*Tc_t, 20) 
     Tc = Tc_t
 elif lattice_type == "ER":
-    T = np.linspace(1, 3.5, 20) 
+    T = np.linspace(2, 4, 20) 
     Tc = 1
 else: print("Errore!")
 
@@ -95,7 +95,7 @@ def step(A_dense, beta, num, rand_spin):
         
         for atom in range(num):
             for neighbour in range(num):
-                corr_matrix[atom][neighbour]+=(spinlist[atom]*spinlist[neighbour])# - (M/num)**2
+                corr_matrix[atom][neighbour]+=(spinlist[atom]*spinlist[neighbour])
 
         norm_corr_matrix = corr_matrix/steps
 
@@ -116,6 +116,7 @@ def main():
     G = nx.convert_node_labels_to_integers(G, first_label=0, ordering='default', label_attribute=None)
     #get number of nodes
     n = num(G)
+    print(n)
                 
     #extract adjacency matrix and convert to numpy dense array
     Adj = nx.adjacency_matrix(G, nodelist=None, dtype=None, weight='weight')
