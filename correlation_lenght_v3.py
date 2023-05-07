@@ -6,7 +6,7 @@ from numba import jit
 
 time_start = time.perf_counter()
 
-lattice_type = 'square'              #write square, triangular or hexagonal
+lattice_type = 'triangular'              #write square, triangular or hexagonal
 p = 0.04
 
 J = 1                             #spin coupling constant
@@ -19,7 +19,8 @@ repeat = 1
 
 Tc = (2*abs(J))/np.log(1+np.sqrt(2))        #Critical temperature
 Tc_h = 2/np.log(2 + np.sqrt(3))             #Critical temperature of hexagonal lattic  at J = 1
-Tc_t = 4 / np.log(3)                       #Critical temperature of triangular lattice at J = 1 
+Tc_t = 4 / np.log(3)                       #Critical temperature of triangular lattice at J = 1
+Tc_ER = 78.5*p
 
 if lattice_type == "square":
     T = np.linspace(0.5*Tc, 1.5*Tc, 10) 
@@ -30,8 +31,8 @@ elif lattice_type == "triangular":
     T = np.linspace(0.5*Tc_t, 1.5*Tc_t, 10) 
     Tc = Tc_t
 elif lattice_type == "ER":
-    T = np.linspace(1, 5, 10) 
-    Tc = 1
+    T = np.linspace(0.5*Tc_ER, 1.5*Tc_ER, 10) 
+    Tc = Tc_ER
 else: print("Errore!")
 
 #function creates lattice
@@ -75,63 +76,47 @@ def neighbour_number(lenghts, num):                         #returns array max_r
 
 @jit(nopython=True)
 def step(A_dense, beta, num, lenghts, spinlist, neighnum):
-    
-    corr_repeats = np.empty((repeat, max_r))
+
     corr_r = np.zeros(max_r)
-    
-    for rep in range(repeat):
-        l=0
-        while l <= steps:                               #evolve trough steps number of timesteps
+        
+    for l in range(steps):                               #evolve trough steps number of timesteps
 
-            A = np.copy(A_dense)                        #take new copy of adj. matrix at each step because it gets changed trough the function
+        A = np.copy(A_dense)                        #take new copy of adj. matrix at each step because it gets changed trough the function
 
-            for m in range(A.shape[1]):  #A.shape[1] gives number of nodes
-                for n in range(A.shape[1]):
-                    if A[m,n]==1:
-                        A[m,n]=spinlist[n] #assigned to every element in the adj matrix the corresponding node spin value
+        for m in range(A.shape[1]):  #A.shape[1] gives number of nodes
+            for n in range(A.shape[1]):
+                if A[m,n]==1:
+                    A[m,n]=spinlist[n] #assigned to every element in the adj matrix the corresponding node spin value
          
-            #sum over rows to get total spin of neighbouring atoms for each atom
-            nnsum = np.sum(A,axis=1)
+        #sum over rows to get total spin of neighbouring atoms for each atom
+        nnsum = np.sum(A,axis=1)
 
-            #What decides the flip is
-            dE = 2*J*np.multiply(nnsum, spinlist) + 2*B*spinlist    #change in energy
+        #What decides the flip is
+        dE = 2*J*np.multiply(nnsum, spinlist) + 2*B*spinlist    #change in energy
 
-            i = np.random.randint(num)
+        i = np.random.randint(num)
 
-            if dE[i]<=0:
-                spinlist[i] *= -1
-            elif np.exp(-dE[i]*beta) > np.random.rand():     #thermal noise
-                spinlist[i] *= -1
+        if dE[i]<=0:
+            spinlist[i] *= -1
+        elif np.exp(-dE[i]*beta) > np.random.rand():     #thermal noise
+            spinlist[i] *= -1
 
-            l+=1
 
-        r = []
+    r = np.arange(0, max_r, 1)
+    corr_atom_radius = np.empty((num, max_r))
+    for atom in range(num):
         corr=0
-        mean=0
         for radius in range(max_r):
-            #corr=0
-            #mean=0
-            for atom in range(num):
-                #mean = 0
-                for neighbour in range(num):
-                    if lenghts[atom, neighbour] <= radius:
-                        corr += (spinlist[atom]*spinlist[neighbour])    #measures correlation for a given distance
-                        mean += spinlist[neighbour]
-                if radius == 0:
-                    corr2 = corr                                        #only neighbour at distance zero is the atom itself
-                else:
-                    if neighnum[radius, atom] == 0:                     #avoid dividing by zero if there are no atoms at a certain distance, these are border effects
-                        corr2 = 0
-                    else:
-                        corr2 = corr/(neighnum[radius, atom])-mean**2/(neighnum[radius, atom])**2
-            corr3 = corr2/num
-            r.append(radius)                        
-            corr_repeats[rep][radius] = abs(corr3)
-
-    for y in range(max_r):
-        for x in range(repeat):
-            corr_r[y]+=corr_repeats[x][y]
-        corr_r[y] = corr_r[y]/repeat
+            for neighbour in range(num):
+                if lenghts[atom, neighbour] == radius:
+                    corr += spinlist[atom]*spinlist[neighbour]
+            neigh_atom_per_radius = neighnum[:, atom]       #for each atom give number of neighbours as a function of radius
+            neigh_atom_up_to_radius = np.sum(neigh_atom_per_radius[:radius+1])    #sum number of neighbours up to a certain radius
+            if neigh_atom_up_to_radius == 0:
+                corr_atom_radius[atom, radius] = corr
+            else:
+                corr_atom_radius[atom, radius] = corr/neigh_atom_up_to_radius
+    corr_r = np.sum(corr_atom_radius, axis=0)/num
 
     return corr_r, r
 
@@ -152,12 +137,9 @@ def main():
     A_dense = Adj.todense()
 
     lenghts = distances(n, spl)
-    
     neigh_num = neighbour_number(lenghts, n)
-    #print(neigh_num)
 
-
-    rand_spin = np.random.choice(np.array([1, 1]), n)   #create random spins for nodes
+    rand_spin = np.random.choice(np.array([1, -1]), n)   #create random spins for nodes
     for j in range(len(T)):
 
         spinlist = np.copy(rand_spin)
@@ -171,7 +153,7 @@ def main():
     plt.xlabel('node distance r')
     plt.ylabel('$<\sigma(i)\sigma(i+r)> - {<\sigma(i)>}^2$')
     plt.legend()
-    plt.title('type:{}, J={}, B={}, ev_steps={}, no. atoms={}, p={}'.format(lattice_type, J, B, steps, M*N, p))
+    plt.title(f'type:{lattice_type}, J={J}, B={B}, ev_steps={steps}, no. atoms={n}, p={p}')
 
     time_elapsed = (time.perf_counter() - time_start)
     print ("checkpoint %5.1f secs" % (time_elapsed))

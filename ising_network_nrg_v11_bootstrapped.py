@@ -7,15 +7,15 @@ from numba import jit
 time_start = time.perf_counter()
 
 k_b = 8.617333262e-5
-lattice_type = 'ER'            #write square, triangular or hexagonal, ER
+lattice_type = 'square'            #write square, triangular or hexagonal, ER
 J = 1                       #spin coupling constant
 B = 0                       #external magnetic field
 M = 10                      #lattice size MxN
 N = 10
-steps = 20000                      #number of evolution steps per given temperature
-steps_to_eq = 10000                   #steps until equilibrium is reached
-repeat = 1                     #number of trials per temperature to average over
-nbstrap = 100
+steps = 30000                      #number of evolution steps per given temperature
+steps_to_eq = 20000                   #steps until equilibrium is reached
+repeat = 100                     #number of trials per temperature to average over
+nbstrap = 1000
 
 Tc = (2*abs(J))/np.log(1+np.sqrt(2))        #Critical temperature
 Tc_h = 2/np.log(2 + np.sqrt(3))             #Critical temperature of hexagonal lattic  at J = 1
@@ -29,8 +29,9 @@ elif lattice_type == "hexagonal":
 elif lattice_type == "triangular":
     T = np.linspace(0.5*Tc_t, 1.5*Tc_t, 30) 
     Tc = Tc_t
-else:
-    T = np.linspace(0.5*Tc, 3*Tc, 20) 
+elif lattice_type == 'ER':
+    T = np.linspace(2, 4, 30)
+    Tc = 1 
 
 ones = np.ones(len(T))
 beta = ones/(T)
@@ -95,10 +96,9 @@ def step(A_dense, beta, num):
 
             spinlist = np.copy(rand_spin)   #create random spins for nodes
 
-            l=0
             E_time = np.empty(steps)
             M_time = np.empty(steps)
-            for h in range(10*steps):                               #evolve trough steps number of timesteps
+            for h in range(steps):                               #evolve trough steps number of timesteps
 
                 A = np.copy(A_dense)                        #take new copy of adj. matrix at each step because it gets changed trough the function
 
@@ -123,10 +123,8 @@ def step(A_dense, beta, num):
                 elif np.exp(-dE[i]*beta[j]) > np.random.rand():     #thermal noise
                     spinlist[i] *= -1
 
-                if h % 10 == 0:             #acquire every 10 steps to reduce correlations between aquisitions
-                    E_time[l] = E            #list of energy trough time
-                    M_time[l] = M            #list of magnetisation trough time
-                    l+=1
+                E_time[h] = E            #list of energy trough time
+                M_time[h] = M            #list of magnetisation trough time
 
             def bootstrap(G):
                 G_bootstrap = []
@@ -218,16 +216,16 @@ def main():
     ax4 = fig.add_subplot(2, 2, 4)
     ax1.scatter(T/Tc, E_beta/(n_normalize*abs(J)), color = 'orange')
     ax1.set_ylabel('$<E>/J$')
-    ax1.set_xlabel('T/Tc_square')
+    ax1.set_xlabel('T/Tc')
     ax2.scatter(T/Tc, M_beta/n_normalize, color = 'blue')
     ax2.set_ylabel('$<\sqrt{|M^2|}>$')
-    ax2.set_xlabel('T/Tc_square')
+    ax2.set_xlabel('T/Tc')
     ax3.scatter(T/Tc, cv_beta/n_normalize, color = 'green')
     ax3.set_ylabel('$C_v$')
-    ax3.set_xlabel('T/Tc_square')
+    ax3.set_xlabel('T/Tc')
     ax4.scatter(T/Tc, xi_beta/n_normalize, color = 'black')
     ax4.set_ylabel('$\Xi$')
-    ax4.set_xlabel('T/Tc_square')
+    ax4.set_xlabel('T/Tc')
     fig.suptitle('{} no.atoms={}  B={} J={}, ev_steps={}, samples/T={}'.format(lattice_type, n, B, J, steps, repeat))
     fig.tight_layout()
     plt.show()

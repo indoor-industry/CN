@@ -9,12 +9,22 @@ time_start = time.perf_counter()
 
 J = 1  # spin coupling constant
 B = 0  # external magnetic field
-M = 10  # lattice size MxN
-N = 10
-steps = 30000  # number of evolution steps per given temperature
+M = 5  # lattice size MxN
+N = 5
+steps = 21000  # number of evolution steps per given temperature
 steps_to_eq = 20000  # steps until equilibrium is reached
-repeat = 10  # number of trials per temperature to average over
+repeat = 2  # number of trials per temperature to average over
 nbstrap = 1000
+
+#original parameters
+#J = 1  # spin coupling constant
+#B = 0  # external magnetic field
+#M = 10  # lattice size MxN
+#N = 10
+#steps = 30000  # number of evolution steps per given temperature
+#steps_to_eq = 20000  # steps until equilibrium is reached
+#repeat = 10  # number of trials per temperature to average over
+#nbstrap = 1000
 
 lenth_p_sweep = np.arange(1/(N*M), 10/(N*M), 1/(M*N))
 print(lenth_p_sweep)
@@ -205,12 +215,7 @@ def main():
     np.savetxt("psweep_Tc.csv", critical, delimiter=",")
     np.savetxt("psweep_p.csv", lenth_p_sweep, delimiter=",")
 
-    #line = sp.stats.linregress(lenth_p_sweep, critical)
-    #slope = line[0]
-    #intercept = line[1]
-
     plt.scatter(lenth_p_sweep, critical)
-    #plt.plot(lenth_p_sweep, slope*lenth_p_sweep+intercept, label='fit')
     plt.title('ER Critical temperature')
     plt.xlabel('p')
     plt.ylabel('Tc')
