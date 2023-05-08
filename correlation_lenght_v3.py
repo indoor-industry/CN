@@ -7,12 +7,12 @@ from numba import jit
 time_start = time.perf_counter()
 
 lattice_type = 'ER'              #write square, triangular or hexagonal
-p = 0.01
+p = 0.08
 
 J = 1                             #spin coupling constant
 B = 0                                #external magnetic field
-M = 10                               #lattice size MxN
-N = 10
+M = 20                               #lattice size MxN
+N = 20
 steps = 30000                         #number of evolution steps per given temperature
 max_r = 10
 repeat = 10
@@ -20,18 +20,18 @@ repeat = 10
 Tc = (2*abs(J))/np.log(1+np.sqrt(2))        #Critical temperature
 Tc_h = 2/np.log(2 + np.sqrt(3))             #Critical temperature of hexagonal lattic  at J = 1
 Tc_t = 4 / np.log(3)                       #Critical temperature of triangular lattice at J = 1
-Tc_ER = 78.5*p
+Tc_ER = 84.2*p                              #linear guess from p sweep
 
 if lattice_type == "square":
-    T = np.linspace(0.5*Tc, 1.5*Tc, 10) 
+    T = np.linspace(0.5*Tc, 1.5*Tc, 9) 
 elif lattice_type == "hexagonal":
-    T = np.linspace(0.5*Tc_h, 1.5*Tc_h, 10) 
+    T = np.linspace(0.5*Tc_h, 1.5*Tc_h, 9) 
     Tc = Tc_h
 elif lattice_type == "triangular":
-    T = np.linspace(0.5*Tc_t, 1.5*Tc_t, 10) 
+    T = np.linspace(0.5*Tc_t, 1.5*Tc_t, 9) 
     Tc = Tc_t
 elif lattice_type == "ER":
-    T = np.linspace(0.5*Tc_ER, 1.5*Tc_ER, 10) 
+    T = np.linspace(0.5*Tc_ER, 1.5*Tc_ER, 9) 
     Tc = Tc_ER
 else: print("Errore!")
 

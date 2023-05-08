@@ -6,27 +6,31 @@ from numba import jit
 
 time_start = time.perf_counter()
 
-lattice_type = 'hexagonal'  # write square, triangular or hexagonal
-J = 1  # spin coupling
-M = 18  # lattice size MxN
-N = 18
-steps = 15000  # number of timesteps of evolution per given temperature
-B_sample = 5  # number of samples between minimum and maximum values of B NEEDS TO BE ODD FOR SENSIBLE RESULTS
-T_sample = 5  # number of samples between minimum and maximum values of T
-eq_steps = 10000
-# Onsager critical temperature for square lattice
-Tc = (2*abs(J))/np.log(1+np.sqrt(2))
-Tc = (2*abs(J))/np.log(1+np.sqrt(2))  # Critical temperature
-# Critical temperature of hexagonal lattic  at J = 1
-Tc_h = 2/np.log(2 + np.sqrt(3))
-Tc_t = 4 / np.log(3)  # Critical temperature of triangular lattice at J = 1
+lattice_type = 'square'     # write square, triangular or hexagonal
+J = 1                       # spin coupling
+M = 10                      # lattice size MxN
+N = 10
+steps = 30000       # number of timesteps of evolution per given temperature
+B_sample = 20       # number of samples between minimum and maximum values of B NEEDS TO BE ODD FOR SENSIBLE RESULTS
+T_sample = 20       # number of samples between minimum and maximum values of T
+steps_to_eq = 25000
+nbstrap = 1000
 
+if lattice_type == 'square':
+    Tc = (2*abs(J))/np.log(1+np.sqrt(2))  # Critical temperature
+    T_min = 0.5*Tc  # min temperature to explore
+    T_max = 1.5*Tc  # max temperature to explore
+elif lattice_type == 'triangular:':
+    Tc = 2/np.log(2 + np.sqrt(3))     # Critical temperature of hexagonal lattic  at J = 1
+    T_min = 0.5*Tc  # min temperature to explore
+    T_max = 1.5*Tc  # max temperature to explore
+elif lattice_type == 'hexagonal':
+    Tc = 4 / np.log(3)  # Critical temperature of triangular lattice at J = 1
+    T_min = 0.5*Tc  # min temperature to explore
+    T_max = 1.5*Tc  # max temperature to explore
 
-T_min = 0.5*Tc_h  # min temperature to explore
-T_max = 2*Tc_h  # max temperature to explore
-
-B_min = 0.5  # min magnetic field to explore
-B_max = 2.0  # max magnetic field to explore
+B_min = 0  # min magnetic field to explore
+B_max = 1.5  # max magnetic field to explore
 
 T = np.linspace(T_min, T_max, T_sample)  # temperature range to explore
 
@@ -37,8 +41,6 @@ beta = ones/T
 B = np.linspace(B_min, B_max, B_sample)
 
 # function creates lattice
-
-
 def lattice(M, N):
     if lattice_type == 'hexagonal':
         lattice = nx.hexagonal_lattice_graph(
@@ -51,8 +53,6 @@ def lattice(M, N):
     return lattice
 
 # function that counts numer of nodes
-
-
 def num(G):
     n = 0
     for node in G:
@@ -60,8 +60,6 @@ def num(G):
     return n
 
 # function to step lattice in time
-
-
 @jit(nopython=True)
 def step(A_dense, beta, B, num):
 
@@ -103,11 +101,8 @@ def step(A_dense, beta, B, num):
                 nnsum = np.sum(A, axis=1)
 
                 # What decides the flip is
-                dE = 2*J*np.multiply(nnsum, spinlist) + \
-                    2*B[i]*spinlist  # change in energy
-
-                E = -J*sum(np.multiply(nnsum, spinlist)) - \
-                    B[i]*sum(spinlist)  # total energy
+                dE = 2*J*np.multiply(nnsum, spinlist) + 2*B[i]*spinlist  # change in energy
+                E = -J*sum(np.multiply(nnsum, spinlist)) - B[i]*sum(spinlist)  # total energy
                 M = np.sum(spinlist)  # total magnetisation
 
                 # update spin configuration if energetically favourable or if thermal fluctuations contribute
@@ -118,12 +113,38 @@ def step(A_dense, beta, B, num):
                     spinlist[l] *= -1
 
                 E_time.append(E)
-                M_time.append(M)
+                M_time.append(abs(M))
+
+            def bootstrap(G):
+                G_bootstrap = []
+                for i in range(steps-steps_to_eq):
+                    alpha = int(np.random.uniform(0, steps-steps_to_eq))
+                    G_bootstrap.append(G[alpha])
+                return G_bootstrap
+
+            def bs_mean(G):                                             # MC avg of G
+                G_bs_mean = np.empty(steps-steps_to_eq)        
+                for n in range(steps-steps_to_eq):                                  # compute MC averages
+                    avg_G = 0
+                    for alpha in range(len(G)):
+                        avg_G += G[alpha][n]
+                    avg_G = avg_G/len(G)
+                    G_bs_mean[n] = avg_G
+                return G_bs_mean
+
+            bsM_time = np.empty((nbstrap, steps-steps_to_eq))
+            bsE_time = np.empty((nbstrap, steps-steps_to_eq))
+            for p in range(nbstrap):
+                g = bootstrap(E_time[steps_to_eq:])
+                f = bootstrap(M_time[steps_to_eq:])
+                bsE_time[p] = g
+                bsM_time[p] = f
+            bsE_time_avg = bs_mean(bsE_time)
+            bsM_time_avg = bs_mean(bsM_time)
 
             # store magnetisation values
-            M_beta_J[i, j] = mean(M_time[eq_steps:])
-            E_beta_J[i, j] = mean_square(
-                E_time[eq_steps:])/abs(J)  # store energy values
+            M_beta_J[i, j] = mean(bsM_time_avg)
+            E_beta_J[i, j] = mean(bsE_time_avg)/abs(J)
 
         print(i)
 
@@ -144,39 +165,33 @@ def main():
     # run program
     E_beta_J, M_beta_J = step(A_dense, beta, B, n)
 
-    time_elapsed = (time.perf_counter() - time_start)
-    print("checkpoint 1 %5.1f secs" % (time_elapsed))
-
     # store values as csv's
     # np.savetxt("E.csv", E_beta_J/n, delimiter=",")
     # np.savetxt("M.csv", M_beta_J/n, delimiter=",")
 
     # plot
-    ext = [T_min/Tc_h, T_max/Tc_h, B_min, B_max]
+    ext = [T_min/Tc, T_max/Tc, B_min, B_max]
 
     fig = plt.figure(figsize=(15, 15))
     ax1 = fig.add_subplot(2, 2, 1)
     ax2 = fig.add_subplot(2, 2, 2)
-
     fig.suptitle('{}, size {}x{}, J={}, ev_steps={}'.format(
         lattice_type, M, N, J, steps))
 
-    im1 = ax1.imshow(M_beta_J/n, cmap='coolwarm', origin='lower',
-                     extent=ext, aspect='auto', interpolation='spline36')
+    im1 = ax1.imshow(M_beta_J/n, cmap='coolwarm', origin='lower', extent=ext, aspect='auto', interpolation='spline36')
     ax1.set_title('M/site')
     fig.colorbar(im1, ax=ax1)
     ax1.set_ylabel('B')
     ax1.set_xlabel('T/Tc')
 
-    im2 = ax2.imshow(E_beta_J/n, cmap='Reds', origin='lower',
-                     extent=ext, aspect='auto', interpolation='spline36')
+    im2 = ax2.imshow(E_beta_J/n, cmap='Reds', origin='lower', extent=ext, aspect='auto', interpolation='spline36')
     ax2.set_title('(E/J)/site')
     fig.colorbar(im2, ax=ax2)
     ax2.set_ylabel('B')
     ax2.set_xlabel('T/Tc')
 
     time_elapsed = (time.perf_counter() - time_start)
-    print("checkpoint 2 %5.1f secs" % (time_elapsed))
+    print("checkpoint %5.1f secs" % (time_elapsed))
 
     plt.show()
 

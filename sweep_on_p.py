@@ -9,27 +9,17 @@ time_start = time.perf_counter()
 
 J = 1  # spin coupling constant
 B = 0  # external magnetic field
-M = 5  # lattice size MxN
-N = 5
-steps = 21000  # number of evolution steps per given temperature
+M = 10  # lattice size MxN
+N = 10
+steps = 30000  # number of evolution steps per given temperature
 steps_to_eq = 20000  # steps until equilibrium is reached
-repeat = 2  # number of trials per temperature to average over
+repeat = 10  # number of trials per temperature to average over
 nbstrap = 1000
-
-#original parameters
-#J = 1  # spin coupling constant
-#B = 0  # external magnetic field
-#M = 10  # lattice size MxN
-#N = 10
-#steps = 30000  # number of evolution steps per given temperature
-#steps_to_eq = 20000  # steps until equilibrium is reached
-#repeat = 10  # number of trials per temperature to average over
-#nbstrap = 1000
 
 lenth_p_sweep = np.arange(1/(N*M), 10/(N*M), 1/(M*N))
 print(lenth_p_sweep)
 
-T = np.linspace(0.5, 8, 30)
+T = np.linspace(0.5, 8, 50)
 ones = np.ones(len(T))
 beta = ones/(T)
 
@@ -176,13 +166,19 @@ def step(A_dense, beta, num):
 
         print(j)
 
-    return E_beta, M_beta, cv_beta, xi_beta, num
+    var_xi = variance(xi_beta)
+    var_Cv = variance(cv_beta)
+
+    return E_beta, M_beta, cv_beta, xi_beta, num, var_xi, var_Cv
 
 def main():
     cv_array = []
     xi_array = []
     m_array = []
     E_array = []
+
+    var_xi_in_p = []
+    var_cv_in_p = []
     for p in lenth_p_sweep:
         # create lattice
         G = lattice(M, N, p)
@@ -198,12 +194,20 @@ def main():
         A_dense = Adj.todense()
 
         # iterate steps and sweep trough beta
-        E_beta, M_beta, cv_beta, xi_beta, n = step(A_dense, beta, n)
+        E_beta, M_beta, cv_beta, xi_beta, n, var_xi, var_cv = step(A_dense, beta, n)
 
         E_array.append(E_beta)
         cv_array.append(cv_beta)
         xi_array.append(xi_beta)
         m_array.append(M_beta)
+
+        var_cv_in_p.append(var_cv)
+        var_xi_in_p.append(var_xi)
+
+    print(var_cv_in_p)
+    print(var_xi_in_p)
+    np.savetxt("var_cv_in_p.csv", var_cv_in_p, delimiter=",")
+    np.savetxt("var_xi_in_p.csv", var_xi_in_p, delimiter=",")
 
     critical = []
     for a in range(len(lenth_p_sweep)):
@@ -212,7 +216,7 @@ def main():
         critical.append(critical_temp)
 
     print(critical)
-    np.savetxt("psweep_Tc.csv", critical, delimiter=",")
+    np.savetxt("psweep_Tc_Cv.csv", critical, delimiter=",")
     np.savetxt("psweep_p.csv", lenth_p_sweep, delimiter=",")
 
     plt.scatter(lenth_p_sweep, critical)
