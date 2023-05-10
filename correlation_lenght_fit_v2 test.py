@@ -15,8 +15,9 @@ B = 0                                #external magnetic field
 M = 10                               #lattice size MxN
 N = 10
 steps = 30000                         #number of evolution steps per given temperature
-max_r = 15
-repeat = 100
+max_r = 10
+repeat = 1000
+nbstrap = 100000
 
 Tc = (2*abs(J))/np.log(1+np.sqrt(2))        #Critical temperature
 Tc_h = 2/np.log(2 + np.sqrt(3))             #Critical temperature of hexagonal lattic  at J = 1
@@ -24,7 +25,7 @@ Tc_t = 4 / np.log(3)                       #Critical temperature of triangular l
 Tc_ER = 84.2*p                              #linear guess from p sweep
 
 if lattice_type == "square":
-    T = np.linspace(0.8*Tc, 1.5*Tc, 20) 
+    T = np.linspace(0.8*Tc, 1.2*Tc, 20) 
 elif lattice_type == "hexagonal":
     T = np.linspace(0.5*Tc_h, 1.5*Tc_h, 9) 
     Tc = Tc_h
@@ -89,6 +90,28 @@ def lattice(M, N):
         lattice = nx.from_numpy_array(adj)
     
     return lattice
+
+@jit(nopython=True)
+def bootstrap(G):
+    G_bootstrap = []
+    for i in range(repeat):
+        alpha = int(np.random.uniform(0, repeat))
+        G_bootstrap.append(G[alpha])
+    return G_bootstrap
+
+@jit(nopython=True)
+def bs_mean(G):                                             # MC avg of G
+    G_bs_mean = np.empty(repeat)        
+    for n in range(repeat):                                  # compute MC averages
+        avg_G = 0
+        for alpha in range(len(G)):
+            avg_G += G[alpha][n]
+        avg_G = avg_G/len(G)
+        G_bs_mean[n] = avg_G
+    return G_bs_mean
+
+def mean(list):
+    return sum(list)/len(list)
 
 #count number of sites in lattice
 def num(G):
@@ -162,8 +185,8 @@ def correlation(mag, spinlist, lenghts, neighnum, num):
     corr_r = np.abs(corr_r)
     return corr_r, r
 
-def exp(r, a, b, c):
-    return (a*np.exp(-r/b)) + c
+def exp(x, a, xi, c):
+    return a*np.exp(-x/xi) + c
 
 def main():
 
@@ -196,23 +219,36 @@ def main():
             #iterate steps and sweep trough beta
             mag, spinlist = evolution(A_dense, 1/T[j], n, spinlist)
             corr_r, r = correlation(mag, spinlist, lenghts, neigh_num, n)
-
+            
             corr_r_rep[rep] = corr_r
+
+        for x in range(max_r):
+            to_bs = corr_r_rep[:, x]
+
+            bsE_time = np.empty((nbstrap, repeat))
+            for p in range(nbstrap):
+                g = bootstrap(to_bs)
+                bsE_time[p] = g
+            bsE_time_avg = bs_mean(bsE_time)
+            bs_corr_mean = mean(bsE_time_avg)
+
+            corr_r_rep[:, x] = bs_corr_mean
 
         corr_r_avg = np.sum(corr_r_rep, axis=0)/repeat  
 
         popt, pcov = optimize.curve_fit(exp, r, corr_r_avg, p0=(1, 1, 0))
         perr = np.sqrt(np.diag(pcov))
 
-        print(T[j])
-        print(popt)
-        print(perr)
+        #print(T[j])
+        #print(popt)
+        #print(perr)
 
         corrlen.append(popt[1])
         
         fit = [exp(w, popt[0], popt[1], popt[2]) for w in r]
         plt.plot(r, fit)
-        plt.scatter(r, corr_r)
+        plt.scatter(r, corr_r, label=f'T={T[j]}')
+        plt.legend()
         
         np.savetxt(f'corr_data/corr_r {j}.csv', corr_r)
         np.savetxt('corr_data/r.csv', r)

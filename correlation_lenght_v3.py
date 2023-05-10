@@ -6,7 +6,7 @@ from numba import jit
 
 time_start = time.perf_counter()
 
-lattice_type = 'PT226'              #write square, triangular or hexagonal
+lattice_type = 'PT86'              #write square, triangular or hexagonal
 p = 0.08
 
 J = 1                             #spin coupling constant

@@ -1,7 +1,7 @@
 # Monte Carlo simulation of the 2D Ising model
 
 Using the Metropolis-Hastings algorithm in a complex network setting
-The code works for square, triangular and hexagonal lattice types and also for a random Erdos-Renyi graph (work in progress)
+The code works for square, triangular and hexagonal lattice types and also for a random Erdos-Renyi graph as well as different sizes of Penrose tilings
 
 ising_v3.py gives a visual simulation (or energy plot) of a 2d grid iding model to test for consistency tests of the other scripts
 
@@ -18,16 +18,6 @@ The clustered version of the network is the one in which only edges between equa
 
 ising_network_clustering_sweep_v2.py plots some network parameters of the clustered network against temperature
 
-ising_network_clustering_doublesweep_v2.py is similar to double_plots above but for the clustered network
-
 weighted_network_plot_v2.py creates a fully connected network of nodes with edges the average correlation in time and trough the lattice between spins
 
-weighted_network_doucle_plots_v2.py as above but with density
-
 correlation_lenght.py plots and fits the correlation in a specific temperature and fits it to an exponential to find the correlation lenght (work in progress)
-
-correlation_lenght sweeps speak for themselves
-
-# Mic todo
-- Critical temperature from file .csv
-- Ottimization of clustering_sweep --> creare funzioni dei parametri di network senza usare quelle networkx
