@@ -6,16 +6,16 @@ from numba import jit
 
 time_start = time.perf_counter()
 
-lattice_type = 'PT226'              #write square, triangular or hexagonal
+lattice_type = 'square'              #write square, triangular or hexagonal
 p = 0.08
 
 J = 1                             #spin coupling constant
 B = 0                                #external magnetic field
-M = 20                               #lattice size MxN
-N = 20
+M = 10                               #lattice size MxN
+N = 10
 steps = 30000                         #number of evolution steps per given temperature
 max_r = 10
-repeat = 10
+repeat = 1
 
 Tc = (2*abs(J))/np.log(1+np.sqrt(2))        #Critical temperature
 Tc_h = 2/np.log(2 + np.sqrt(3))             #Critical temperature of hexagonal lattic  at J = 1
@@ -136,6 +136,7 @@ def step(A_dense, beta, num, lenghts, spinlist, neighnum):
 
             #What decides the flip is
             dE = 2*J*np.multiply(nnsum, spinlist) + 2*B*spinlist    #change in energy
+            M = np.sum(spinlist)/num
 
             i = np.random.randint(num)
 
@@ -155,7 +156,7 @@ def step(A_dense, beta, num, lenghts, spinlist, neighnum):
                 neigh_atom_per_radius = neighnum[:, atom]       #for each atom give number of neighbours as a function of radius
                 neigh_atom_up_to_radius = np.sum(neigh_atom_per_radius[:radius+1])    #sum number of neighbours up to a certain radius    
                 corr_atom_radius[atom, radius] = corr/neigh_atom_up_to_radius
-        corr_r = np.sum(corr_atom_radius, axis=0)/num
+        corr_r = np.sum(corr_atom_radius, axis=0)/num - M**2
         corr_r = np.abs(corr_r)
 
         corr_r_rep[rep] = corr_r

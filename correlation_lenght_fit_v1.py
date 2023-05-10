@@ -3,16 +3,17 @@ import matplotlib.pyplot as plt
 import numpy as np
 import time
 from numba import jit
+from scipy import optimize
 
 time_start = time.perf_counter()
 
-lattice_type = 'PT226'              #write square, triangular or hexagonal
+lattice_type = 'square'              #write square, triangular or hexagonal
 p = 0.08
 
 J = 1                             #spin coupling constant
 B = 0                                #external magnetic field
-M = 20                               #lattice size MxN
-N = 20
+M = 10                               #lattice size MxN
+N = 10
 steps = 30000                         #number of evolution steps per given temperature
 max_r = 10
 repeat = 10
@@ -23,7 +24,7 @@ Tc_t = 4 / np.log(3)                       #Critical temperature of triangular l
 Tc_ER = 84.2*p                              #linear guess from p sweep
 
 if lattice_type == "square":
-    T = np.linspace(0.5*Tc, 1.5*Tc, 9) 
+    T = np.linspace(1, 2.5, 20) 
 elif lattice_type == "hexagonal":
     T = np.linspace(0.5*Tc_h, 1.5*Tc_h, 9) 
     Tc = Tc_h
@@ -107,6 +108,7 @@ def distances(num, spl):
                 lenghts[i, j] = max_r+100                   #set isolated atoms at a distance that will not be exlored (i.e. above max_r)
     return lenghts
 
+@jit(nopython=True)
 def neighbour_number(lenghts, num):                         #returns array max_r x num where element radius, n is the number of atoms at a distance radius from atom n
     nn = np.zeros((max_r, num))
     for radius in range(max_r):
@@ -138,7 +140,6 @@ def step(A_dense, beta, num, lenghts, spinlist, neighnum):
             dE = 2*J*np.multiply(nnsum, spinlist) + 2*B*spinlist    #change in energy
 
             i = np.random.randint(num)
-
             if dE[i]<=0:
                 spinlist[i] *= -1
             elif np.exp(-dE[i]*beta) > np.random.rand():     #thermal noise
@@ -164,6 +165,8 @@ def step(A_dense, beta, num, lenghts, spinlist, neighnum):
 
     return corr_r_avg, r
 
+def exp(r, xi):
+    return np.exp(-r/xi)
 
 def main():
 
@@ -184,24 +187,28 @@ def main():
     neigh_num = neighbour_number(lenghts, n)
 
     rand_spin = np.random.choice(np.array([1, -1]), n)   #create random spins for nodes
+
+    corrlen = []
+    correrr = []
     for j in range(len(T)):
 
         spinlist = np.copy(rand_spin)
 
         #iterate steps and sweep trough beta
         corr_r, r = step(A_dense, 1/T[j], n, lenghts, spinlist, neigh_num)
+        
+        popt, pcov = optimize.curve_fit(exp, r, corr_r)
+        
+        print(T[j])
+        print(popt)
+        print(pcov)
+        
+        corrlen.append(popt)
+        correrr.append(np.sqrt(pcov))
 
-        plt.plot(r, corr_r, label=f'T={T[j]:.2f}')
         print(j)
-    
-    plt.xlabel('node distance r')
-    plt.ylabel('$<<\sigma_i(x)\sigma_i(y)>_{|x-y|<r}$')
-    plt.legend()
-    plt.title(f'Tc = {Tc}')
-    if lattice_type == 'ER':   
-        plt.suptitle(f'type:{lattice_type}, J={J}, B={B}, ev_steps={steps}, no. atoms={n}, p={p}')
-    else:
-        plt.suptitle(f'type:{lattice_type}, J={J}, B={B}, ev_steps={steps}, no. atoms={n}')
+
+    plt.scatter(T, corrlen)
 
     time_elapsed = (time.perf_counter() - time_start)
     print ("checkpoint %5.1f secs" % (time_elapsed))

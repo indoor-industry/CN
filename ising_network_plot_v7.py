@@ -5,9 +5,9 @@ import time
 
 time_start = time.perf_counter()
 
-lattice_type = 'square'            #write square, triangular or hexagonal
+lattice_type = 'PT226'            #write square, triangular or hexagonal, PT31, PT86, PT226
 M = 20
-N = 20                      #MxN size of lattice
+N = 20                      #MxN size of lattice, don't count for PT
 J = 1                    #spin-spin coupling strenght
 B = 0
 T = 1                  #external field (actually is mu*B where mu is magnetic moment of atoms)
@@ -27,7 +27,71 @@ def lattice(M, N):
         lattice = nx.grid_2d_graph(M, N, periodic=True, create_using=None)
         lattice = nx.convert_node_labels_to_integers(lattice, first_label=0, ordering='default', label_attribute=None)
         pos = generate_grid_pos(lattice, M, N) #use for 2D grid network
+    elif lattice_type == 'PT86':
+        edges = np.loadtxt('PT/nnbond86.txt')
+        adj = np.zeros((86, 86))
+        for m in range(len(edges)):
+                bond = edges[m]
+                i = int(bond[0]) -1
+                j = int(bond[1]) -1
+                adj[i][j] = 1
 
+        positions = np.loadtxt('PT/coordinate86.txt')
+        pos = []
+        for node in range(86):
+            position_node = positions[node]
+            pos.append((position_node[0], position_node[1]))
+     
+        lattice = nx.from_numpy_array(adj)
+    
+    elif lattice_type == 'PT226':
+        edges = np.loadtxt('PT/nnbond226.txt')
+        adj = np.zeros((226, 226))
+        for m in range(len(edges)):
+                bond = edges[m]
+                i = int(bond[0]) -1
+                j = int(bond[1]) -1
+                adj[i][j] = 1
+
+        positions = np.loadtxt('PT/coordinate226.txt')
+        pos = []
+        for node in range(226):
+            position_node = positions[node]
+            pos.append((position_node[0], position_node[1]))
+     
+        lattice = nx.from_numpy_array(adj)
+    
+    elif lattice_type == 'PT31':
+        edges = np.loadtxt('PT/nnbond31.txt')
+        adj = np.zeros((31, 31))
+        for m in range(len(edges)):
+                bond = edges[m]
+                i = int(bond[0]) -1
+                j = int(bond[1]) -1
+                adj[i][j] = 1
+
+        positions = np.loadtxt('PT/coordinate31.txt')
+        pos = []
+        for node in range(31):
+            position_node = positions[node]
+            pos.append((position_node[0], position_node[1]))
+     
+    elif lattice_type == 'PT601':
+        edges = np.loadtxt('PT/nnbond601.txt')
+        adj = np.zeros((601, 601))
+        for m in range(len(edges)):
+                bond = edges[m]
+                i = int(bond[0]) -1
+                j = int(bond[1]) -1
+                adj[i][j] = 1
+
+        positions = np.loadtxt('PT/coordinate601.txt')
+        pos = []
+        for node in range(601):
+            position_node = positions[node]
+            pos.append((position_node[0], position_node[1]))
+        lattice = nx.from_numpy_array(adj)
+    
     return lattice, pos
 
 def generate_grid_pos(G, M, N):
@@ -111,7 +175,7 @@ def iter(G, steps, pos, num):
         if i % 100==0:            #skip steps if needed
             #update color map
             color = colormap(G)
-            nx.draw(G, node_color=color, node_size=20, edge_color='white', pos=pos, with_labels=False)
+            nx.draw(G, node_color=color, node_size=20, edge_color='black', pos=pos, with_labels=False)
             plt.pause(0.01)                                    #this shows an animation
             plt.savefig('time_ev/step({}).png'.format(i+1))  #this saves the series of images
         print(i)

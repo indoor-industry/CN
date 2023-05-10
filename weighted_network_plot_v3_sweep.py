@@ -8,11 +8,10 @@ from numba import jit
 
 time_start = time.perf_counter()
 
-k_b = 8.617333262e-5
-lattice_type = 'ER'            #write square, triangular or hexagonal
+lattice_type = 'PT86'            #write square, triangular or hexagonal or PT{N}
 J = 1                        #spin coupling constant
 B = 0                     #external magnetic field
-M = 10                          #lattice size MxN
+M = 10                          #lattice size MxN, doesn't affect PT
 N = 10
 steps = 30000                      #number of evolution steps per given temperature
 repeat = 20
@@ -29,10 +28,9 @@ elif lattice_type == "hexagonal":
 elif lattice_type == "triangular":
     T = np.linspace(0.5*Tc_t, 1.5*Tc_t, 20) 
     Tc = Tc_t
-elif lattice_type == "ER":
-    T = np.linspace(2, 4, 20) 
+else:
+    T = np.linspace(1.5, 3.5, 20) 
     Tc = 1
-else: print("Errore!")
 
 #function creates lattice
 def lattice(M, N):
@@ -44,6 +42,46 @@ def lattice(M, N):
         lattice = nx.grid_2d_graph(M, N, periodic=True, create_using=None)
     elif lattice_type == 'ER':
         lattice = nx.erdos_renyi_graph(M*N, 0.04, seed=None, directed=False)
+    elif lattice_type == 'PT86':
+        edges = np.loadtxt('PT/nnbond86.txt')
+        adj = np.zeros((86, 86))
+        for m in range(len(edges)):
+                bond = edges[m]
+                i = int(bond[0]) -1
+                j = int(bond[1]) -1
+                adj[i][j] = 1
+        lattice = nx.from_numpy_array(adj)
+    
+    elif lattice_type == 'PT226':
+        edges = np.loadtxt('PT/nnbond226.txt')
+        adj = np.zeros((226, 226))
+        for m in range(len(edges)):
+                bond = edges[m]
+                i = int(bond[0]) -1
+                j = int(bond[1]) -1
+                adj[i][j] = 1
+        lattice = nx.from_numpy_array(adj)
+    
+    elif lattice_type == 'PT31':
+        edges = np.loadtxt('PT/nnbond31.txt')
+        adj = np.zeros((31, 31))
+        for m in range(len(edges)):
+                bond = edges[m]
+                i = int(bond[0]) -1
+                j = int(bond[1]) -1
+                adj[i][j] = 1
+        lattice = nx.from_numpy_array(adj)
+     
+    elif lattice_type == 'PT601':
+        edges = np.loadtxt('PT/nnbond601.txt')
+        adj = np.zeros((601, 601))
+        for m in range(len(edges)):
+                bond = edges[m]
+                i = int(bond[0]) -1
+                j = int(bond[1]) -1
+                adj[i][j] = 1
+        lattice = nx.from_numpy_array(adj)
+    
     return lattice
 
 #count number of sites in lattice
